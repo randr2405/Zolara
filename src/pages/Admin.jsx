@@ -88,7 +88,7 @@ function SellerCard({ seller, status, complaintCount }) {
         <div className="flex-1">
           <p className="font-medium">{seller.businessName}</p>
           <p className="text-xs">
-            {seller.city} · {seller.phone}
+            {seller.city}
             {complaintCount > 0 && (
               <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-red-700">
                 {complaintCount} {complaintCount === 1 ? 'complaint' : 'complaints'}
@@ -104,6 +104,7 @@ function SellerCard({ seller, status, complaintCount }) {
       {open && (
         <div className="mt-3 flex flex-col gap-1 border-t border-gold/40 pt-3">
           <Row label="Email" value={details?.email} />
+          <Row label="Phone" value={details?.app?.phone || seller.phone} />
           <Row label="About" value={seller.description} />
           <Row label="Registration number" value={details?.app?.registrationNumber} />
           <Row label="References" value={details?.app?.references} />

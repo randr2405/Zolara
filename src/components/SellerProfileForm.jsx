@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { useEffect, useState } from 'react'
+import { deleteField, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { resizeImage } from '../lib/images'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -8,11 +8,13 @@ const input = 'rounded-lg border border-gold/50 bg-white p-3'
 
 export default function SellerProfileForm({ seller, onDone }) {
   const { user } = useAuth()
+  const hasSeller = Boolean(seller)
+  const legacyPhone = seller?.phone || ''
   const [form, setForm] = useState({
     businessName: seller?.businessName || '',
     description: seller?.description || '',
     city: seller?.city || '',
-    phone: seller?.phone || '',
+    phone: legacyPhone,
   })
   const [app, setApp] = useState({ registrationNumber: '', references: '', examples: '' })
   const [logo, setLogo] = useState(null)
@@ -22,12 +24,27 @@ export default function SellerProfileForm({ seller, onDone }) {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const setA = (k) => (e) => setApp({ ...app, [k]: e.target.value })
 
+  useEffect(() => {
+    if (!hasSeller) return
+    getDoc(doc(db, 'applications', user.uid))
+      .then((s) => {
+        const saved = s.exists() ? s.data().phone : ''
+        setForm((f) => ({ ...f, phone: saved || legacyPhone }))
+      })
+      .catch(() => {})
+  }, [hasSeller, legacyPhone, user.uid])
+
   async function handleSubmit(e) {
     e.preventDefault()
     setBusy(true)
     setError('')
     try {
-      const data = { ...form }
+      const data = {
+        businessName: form.businessName,
+        description: form.description,
+        city: form.city,
+        phone: deleteField(),
+      }
       if (logo) data.logoUrl = await resizeImage(logo, 200, 0.8)
       if (!seller) {
         data.verified = false
@@ -40,8 +57,11 @@ export default function SellerProfileForm({ seller, onDone }) {
       if (!seller) {
         await setDoc(doc(db, 'applications', user.uid), {
           ...app,
+          phone: form.phone,
           submittedAt: serverTimestamp(),
         })
+      } else {
+        await setDoc(doc(db, 'applications', user.uid), { phone: form.phone }, { merge: true })
       }
       onDone?.()
     } catch (err) {
@@ -60,8 +80,11 @@ export default function SellerProfileForm({ seller, onDone }) {
         value={form.description} onChange={set('description')} className={input} />
       <input required placeholder="City or town (e.g. Durban)" value={form.city}
         onChange={set('city')} className={input} />
-      <input required placeholder="Contact phone number" value={form.phone}
-        onChange={set('phone')} className={input} />
+      <div>
+        <input required placeholder="Contact phone number" value={form.phone}
+          onChange={set('phone')} className={`${input} w-full`} />
+        <p className="mt-1 text-xs">Private. Only you and the Zolara team can see this number.</p>
+      </div>
       <label className="text-sm">
         Logo (optional)
         <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files[0])}

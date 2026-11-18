@@ -101,8 +101,8 @@ export const PRIVACY = {
       heading: '1. What we collect',
       bullets: [
         'Account details: your name, email address and whether you are a buyer or a seller. Your password is handled by our login provider and we cannot see it.',
-        'Seller profile: business name, description, city, contact phone number and logo.',
-        'Supplier application: references, examples of your work, and a registration number if you give one. Only you and Zolara administrators can see these.',
+        'Seller profile: business name, description, city and logo.',
+        'Supplier application: your contact phone number, references, examples of your work, and a registration number if you give one. Only you and Zolara administrators can see these.',
         'Listings: titles, descriptions, prices, categories and photos.',
         'Bookings and orders: your name, email, phone number, delivery address or service location, the date and time, and any notes you add.',
         'Feedback: whether you were satisfied and any comment you leave.',
