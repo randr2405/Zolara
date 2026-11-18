@@ -15,6 +15,7 @@ export default function SellerProfileForm({ seller, onDone }) {
     phone: seller?.phone || '',
   })
   const [logo, setLogo] = useState(null)
+  const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
@@ -29,6 +30,8 @@ export default function SellerProfileForm({ seller, onDone }) {
       if (!seller) {
         data.verified = false
         data.createdAt = serverTimestamp()
+        data.acceptedRulesAt = serverTimestamp()
+        data.rulesVersion = '1.0'
       }
       await setDoc(doc(db, 'sellers', user.uid), data, { merge: true })
       onDone?.()
@@ -55,6 +58,19 @@ export default function SellerProfileForm({ seller, onDone }) {
         <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files[0])}
           className="mt-1 block w-full text-sm" />
       </label>
+
+      {!seller && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" required checked={accepted}
+            onChange={(e) => setAccepted(e.target.checked)} className="mt-1" />
+          <span>
+            I have read and agree to the{' '}
+            <a href="/supplier-rules" target="_blank" rel="noreferrer"
+              className="text-emerald-brand underline">supplier rules</a>.
+          </span>
+        </label>
+      )}
+
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex gap-3">
         <button disabled={busy}
