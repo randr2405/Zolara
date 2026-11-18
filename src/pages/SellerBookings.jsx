@@ -1,0 +1,107 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where,
+} from 'firebase/firestore'
+import { db } from '../lib/firebase'
+import { useAuth } from '../context/AuthContext.jsx'
+import { formatZAR } from '../lib/constants.js'
+import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
+
+const setStatus = (id, status) =>
+  updateDoc(doc(db, 'bookings', id), { status, updatedAt: serverTimestamp() })
+
+export default function SellerBookings() {
+  const { user } = useAuth()
+  const [bookings, setBookings] = useState(null)
+  const [feedback, setFeedback] = useState({})
+  const [error, setError] = useState('')
+
+  useEffect(
+    () =>
+      onSnapshot(query(collection(db, 'bookings'), where('sellerId', '==', user.uid)), (snap) => {
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        setBookings(items)
+      }),
+    [user.uid]
+  )
+
+  useEffect(
+    () =>
+      onSnapshot(query(collection(db, 'feedback'), where('sellerId', '==', user.uid)), (snap) => {
+        const map = {}
+        snap.docs.forEach((d) => { map[d.id] = d.data() })
+        setFeedback(map)
+      }),
+    [user.uid]
+  )
+
+  async function act(id, status) {
+    setError('')
+    try {
+      await setStatus(id, status)
+    } catch (err) {
+      console.error(err)
+      setError('Could not update the booking. Please try again.')
+    }
+  }
+
+  if (!bookings) return <p className="p-6 text-center">Loading…</p>
+
+  return (
+    <main className="mx-auto max-w-2xl p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-emerald-brand">Bookings</h1>
+        <Link to="/seller" className="text-sm text-emerald-brand underline">Back to dashboard</Link>
+      </div>
+
+      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
+      {bookings.length === 0 && <p className="text-sm">No booking requests yet.</p>}
+
+      <ul className="flex flex-col gap-3">
+        {bookings.map((b) => (
+          <li key={b.id} className="rounded-xl bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">{b.listingTitle}</p>
+                <p className="text-sm text-gold-deep">{formatWhen(b.date, b.time)} · {formatZAR(b.priceCents)}</p>
+              </div>
+              <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
+            </div>
+
+            <div className="mt-2 text-sm">
+              <p>Customer: {b.buyerName}</p>
+              <p>Phone: {b.buyerPhone} · Email: {b.buyerEmail}</p>
+              {b.notes && <p className="whitespace-pre-line">Notes: {b.notes}</p>}
+            </div>
+
+            <div className="mt-3 flex gap-3">
+              {b.status === 'requested' && (
+                <>
+                  <button onClick={() => act(b.id, 'confirmed')}
+                    className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Accept</button>
+                  <button onClick={() => window.confirm('Decline this booking?') && act(b.id, 'declined')}
+                    className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Decline</button>
+                </>
+              )}
+              {b.status === 'confirmed' && (
+                <button onClick={() => window.confirm('Mark this service as completed?') && act(b.id, 'completed')}
+                  className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">
+                  Mark as completed
+                </button>
+              )}
+            </div>
+
+            {feedback[b.id] && (
+              <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
+                Customer feedback: {feedback[b.id].satisfied ? 'Satisfied' : 'Not satisfied'}
+                {feedback[b.id].comment ? ` — ${feedback[b.id].comment}` : ''}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </main>
+  )
+}
