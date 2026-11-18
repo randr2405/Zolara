@@ -13,7 +13,13 @@ export default function Shop() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    getDocs(query(collection(db, 'listings'), where('active', '==', true)))
+    getDocs(
+      query(
+        collection(db, 'listings'),
+        where('active', '==', true),
+        where('sellerApproved', '==', true)
+      )
+    )
       .then((snap) => {
         const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))

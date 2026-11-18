@@ -47,6 +47,15 @@ export default function Signup() {
           ))}
         </div>
 
+        {form.role === 'seller' && (
+          <p className="rounded-lg bg-white p-3 text-xs">
+            Before you join as a supplier, please read our{' '}
+            <a href="/supplier-rules" target="_blank" rel="noreferrer"
+              className="text-emerald-brand underline">supplier rules</a>.
+            You will be asked to agree to them when you set up your business profile.
+          </p>
+        )}
+
         <input required placeholder="Full name or business name" value={form.name}
           onChange={set('name')} className="rounded-lg border border-gold/50 bg-white p-3" />
         <input required type="email" placeholder="Email" value={form.email}

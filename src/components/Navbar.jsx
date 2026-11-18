@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import useIsAdmin from '../lib/useIsAdmin.js'
 import logo from '../assets/zolara-logo.png'
 
 export default function Navbar() {
   const { user, profile, logout } = useAuth()
+  const isAdmin = useIsAdmin()
   return (
     <header className="flex items-center justify-between bg-white px-6 py-3 shadow-sm">
       <Link to="/"><img src={logo} alt="Zolara" className="h-10" /></Link>
@@ -11,6 +13,7 @@ export default function Navbar() {
         <Link to="/shop" className="text-emerald-brand">Shop</Link>
         {user ? (
           <>
+            {isAdmin && <Link to="/admin" className="font-medium text-gold-deep">Admin</Link>}
             {profile?.role === 'seller' && (
               <Link to="/seller" className="text-emerald-brand">Dashboard</Link>
             )}
@@ -21,6 +24,7 @@ export default function Navbar() {
           </>
         ) : (
           <>
+            <Link to="/supplier-rules" className="text-gold-deep">Sell on Zolara</Link>
             <Link to="/login" className="text-emerald-brand">Log in</Link>
             <Link to="/signup" className="rounded-full bg-emerald-brand px-4 py-2 text-cream">
               Sign up

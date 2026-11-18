@@ -94,7 +94,10 @@ export default function ListingForm() {
         await updateDoc(doc(db, 'listings', id), data)
       } else {
         const ref = await addDoc(collection(db, 'listings'), {
-          ...data, active: true, createdAt: serverTimestamp(),
+          ...data,
+          active: true,
+          sellerApproved: seller.status === 'approved',
+          createdAt: serverTimestamp(),
         })
         listingId = ref.id
       }
