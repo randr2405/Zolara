@@ -6,7 +6,9 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { resizeImage } from '../lib/images'
-import { CATEGORIES } from '../lib/constants.js'
+import {
+  mainCategories, subCategories, categoryNote, RESTRICTED_NOTE,
+} from '../lib/constants.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
@@ -19,7 +21,8 @@ export default function ListingForm() {
   const [seller, setSeller] = useState(null)
   const [ready, setReady] = useState(false)
   const [form, setForm] = useState({
-    type: 'product', title: '', description: '', category: '', price: '', stock: '1', duration: '60',
+    type: 'product', title: '', description: '', category: '', subcategory: '',
+    price: '', stock: '1', duration: '60',
   })
   const [existing, setExisting] = useState([]) // [{ id, data }]
   const [removed, setRemoved] = useState([])
@@ -38,7 +41,8 @@ export default function ListingForm() {
         if (!l.exists() || l.data().sellerId !== user.uid) return navigate('/seller')
         const d = l.data()
         setForm({
-          type: d.type, title: d.title, description: d.description, category: d.category,
+          type: d.type, title: d.title, description: d.description,
+          category: d.category || '', subcategory: d.subcategory || '',
           price: (d.priceCents / 100).toString(),
           stock: String(d.stock ?? 1), duration: String(d.durationMinutes ?? 60),
         })
@@ -75,6 +79,7 @@ export default function ListingForm() {
         title: form.title,
         description: form.description,
         category: form.category,
+        subcategory: form.subcategory,
         priceCents: Math.round(parseFloat(form.price) * 100),
         stock: isProduct ? parseInt(form.stock, 10) : null,
         durationMinutes: isProduct ? null : parseInt(form.duration, 10),
@@ -110,11 +115,15 @@ export default function ListingForm() {
 
   if (!ready) return <p className="p-6 text-center">Loading…</p>
 
+  const subs = form.category ? subCategories(form.category, form.type) : []
+  const note = categoryNote(form.category)
+
   return (
     <main className="mx-auto max-w-xl p-6">
-      <h1 className="mb-6 text-2xl font-semibold text-emerald-brand">
+      <h1 className="mb-2 text-2xl font-semibold text-emerald-brand">
         {id ? 'Edit listing' : 'Add a listing'}
       </h1>
+      <p className="mb-6 text-xs text-gold-deep">{RESTRICTED_NOTE}</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           {['product', 'service'].map((t) => (
@@ -122,7 +131,7 @@ export default function ListingForm() {
               className={`cursor-pointer rounded-xl border p-3 text-center text-sm ${
                 form.type === t ? 'border-emerald-brand bg-white' : 'border-gold/50'}`}>
               <input type="radio" name="type" value={t} checked={form.type === t}
-                onChange={(e) => setForm({ ...form, type: e.target.value, category: '' })}
+                onChange={(e) => setForm({ ...form, type: e.target.value, category: '', subcategory: '' })}
                 className="sr-only" />
               {t === 'product' ? 'Product' : 'Service'}
             </label>
@@ -133,10 +142,21 @@ export default function ListingForm() {
         <textarea required rows={5} placeholder="Describe it" value={form.description}
           onChange={set('description')} className={input} />
 
-        <select required value={form.category} onChange={set('category')} className={input}>
+        <select required value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value, subcategory: '' })}
+          className={input}>
           <option value="">Choose a category</option>
-          {CATEGORIES[form.type].map((c) => <option key={c}>{c}</option>)}
+          {mainCategories(form.type).map((c) => <option key={c}>{c}</option>)}
         </select>
+
+        {form.category && (
+          <select required value={form.subcategory} onChange={set('subcategory')} className={input}>
+            <option value="">Choose a sub-category</option>
+            {subs.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        )}
+
+        {note && <p className="rounded-lg bg-white p-3 text-xs text-gold-deep">{note}</p>}
 
         <input required type="number" min="1" step="0.01" placeholder="Price in rand (e.g. 250)"
           value={form.price} onChange={set('price')} className={input} />

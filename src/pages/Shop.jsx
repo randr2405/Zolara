@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { CATEGORIES, formatZAR } from '../lib/constants.js'
+import { mainCategories, subCategories, formatZAR } from '../lib/constants.js'
 
 export default function Shop() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [type, setType] = useState('all')
   const [category, setCategory] = useState('')
+  const [subcategory, setSubcategory] = useState('')
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -21,13 +22,13 @@ export default function Shop() {
       .finally(() => setLoading(false))
   }, [])
 
-  const categories = type === 'all'
-    ? [...new Set([...CATEGORIES.product, ...CATEGORIES.service])]
-    : CATEGORIES[type]
+  const mains = mainCategories(type)
+  const subs = category ? subCategories(category, type) : []
 
   const shown = listings.filter((l) =>
     (type === 'all' || l.type === type) &&
     (!category || l.category === category) &&
+    (!subcategory || l.subcategory === subcategory) &&
     (!search || `${l.title} ${l.sellerName}`.toLowerCase().includes(search.toLowerCase()))
   )
 
@@ -37,17 +38,24 @@ export default function Shop() {
 
       <div className="mb-6 flex flex-wrap gap-3">
         {[['all', 'Everything'], ['product', 'Products'], ['service', 'Services']].map(([v, label]) => (
-          <button key={v} onClick={() => { setType(v); setCategory('') }}
+          <button key={v} onClick={() => { setType(v); setCategory(''); setSubcategory('') }}
             className={`rounded-full px-4 py-2 text-sm ${
               type === v ? 'bg-emerald-brand text-cream' : 'border border-gold-deep text-gold-deep'}`}>
             {label}
           </button>
         ))}
-        <select value={category} onChange={(e) => setCategory(e.target.value)}
+        <select value={category} onChange={(e) => { setCategory(e.target.value); setSubcategory('') }}
           className="rounded-full border border-gold/50 bg-white px-4 py-2 text-sm">
           <option value="">All categories</option>
-          {categories.map((c) => <option key={c}>{c}</option>)}
+          {mains.map((c) => <option key={c}>{c}</option>)}
         </select>
+        {category && (
+          <select value={subcategory} onChange={(e) => setSubcategory(e.target.value)}
+            className="rounded-full border border-gold/50 bg-white px-4 py-2 text-sm">
+            <option value="">All in {category}</option>
+            {subs.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        )}
         <input placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)}
           className="flex-1 rounded-full border border-gold/50 bg-white px-4 py-2 text-sm" />
       </div>

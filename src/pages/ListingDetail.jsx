@@ -46,7 +46,10 @@ export default function ListingDetail() {
       </div>
 
       <div>
-        <p className="text-sm text-gold-deep">{isService ? 'Service' : 'Product'} · {listing.category}</p>
+        <p className="text-sm text-gold-deep">
+          {isService ? 'Service' : 'Product'} · {listing.category}
+          {listing.subcategory ? ` › ${listing.subcategory}` : ''}
+        </p>
         <h1 className="mb-2 text-3xl font-semibold text-emerald-brand">{listing.title}</h1>
         <p className="mb-4 text-2xl">{formatZAR(listing.priceCents)}</p>
         <p className="mb-4 whitespace-pre-line">{listing.description}</p>
