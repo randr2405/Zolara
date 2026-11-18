@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 
 export default function ListingDetail() {
   const { id } = useParams()
+  const { user } = useAuth()
   const [listing, setListing] = useState(undefined)
   const [photos, setPhotos] = useState([])
   const [active, setActive] = useState(0)
@@ -30,6 +32,7 @@ export default function ListingDetail() {
 
   const images = photos.length ? photos : listing.thumb ? [listing.thumb] : []
   const isService = listing.type === 'service'
+  const isOwner = user?.uid === listing.sellerId
 
   return (
     <main className="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
@@ -57,9 +60,22 @@ export default function ListingDetail() {
           {isService ? `${listing.durationMinutes} minutes` : `${listing.stock} in stock`} ·
           Sold by {listing.sellerName}, {listing.city}
         </p>
-        <button disabled className="rounded-full bg-emerald-brand px-8 py-3 text-cream opacity-60">
-          {isService ? 'Book now' : 'Buy now'} (coming soon)
-        </button>
+        {isService ? (
+          isOwner ? (
+            <p className="text-sm">This is your own service.</p>
+          ) : (
+            <Link
+              to={user ? `/listing/${id}/book` : '/login'}
+              className="inline-block rounded-full bg-emerald-brand px-8 py-3 text-cream"
+            >
+              {user ? 'Book now' : 'Log in to book'}
+            </Link>
+          )
+        ) : (
+          <button disabled className="rounded-full bg-emerald-brand px-8 py-3 text-cream opacity-60">
+            Buy now (coming soon)
+          </button>
+        )}
         <p className="mt-4">
           <Link to="/shop" className="text-sm text-emerald-brand underline">← Back to shop</Link>
         </p>

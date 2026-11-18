@@ -55,7 +55,7 @@ export default function BookingForm() {
         noticeAcceptedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       })
-      navigate('/bookings')
+      navigate('/my-bookings')
     } catch (err) {
       console.error(err)
       setError('Could not send your booking request. Please try again.')

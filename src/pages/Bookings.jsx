@@ -1,7 +1,5 @@
 export const NOTICE_VERSION = '1.0'
 
-// Shown to customers before they confirm a service booking.
-// Have a lawyer review this wording before launch.
 export const SERVICE_NOTICE = [
   'Zolara is a marketplace that connects customers with independent suppliers. The supplier, not Zolara, provides the service.',
   'To the extent the law allows, Zolara is not responsible or accountable for delays or problems with a service. Nothing here limits any rights you have under South African law.',

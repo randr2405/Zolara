@@ -14,8 +14,13 @@ export default function Navbar() {
         {user ? (
           <>
             {isAdmin && <Link to="/admin" className="font-medium text-gold-deep">Admin</Link>}
-            {profile?.role === 'seller' && (
-              <Link to="/seller" className="text-emerald-brand">Dashboard</Link>
+            {profile?.role === 'seller' ? (
+              <>
+                <Link to="/seller" className="text-emerald-brand">Dashboard</Link>
+                <Link to="/seller/bookings" className="text-emerald-brand">Bookings</Link>
+              </>
+            ) : (
+              <Link to="/my-bookings" className="text-emerald-brand">My bookings</Link>
             )}
             <Link to="/account" className="text-emerald-brand">
               {profile?.displayName || 'Account'}
