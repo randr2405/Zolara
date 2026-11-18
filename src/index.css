@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-emerald-brand: #0B3D2E;
+  --color-gold: #C9A24B;
+  --color-gold-deep: #A67C2E;
+  --color-cream: #FAF6EE;
+  --color-charcoal: #2B2B2B;
+  --color-action: #1E8E5A;
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-charcoal);
+  font-family: system-ui, sans-serif;
+}
