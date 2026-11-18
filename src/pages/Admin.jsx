@@ -17,7 +17,6 @@ async function decide(seller, status, reason = '') {
   })
   await head.commit()
 
-  // Show or hide all of this supplier's listings
   const listings = await getDocs(query(collection(db, 'listings'), where('sellerId', '==', seller.id)))
   for (let i = 0; i < listings.docs.length; i += 10) {
     const batch = writeBatch(db)
@@ -36,7 +35,7 @@ function Row({ label, value }) {
   )
 }
 
-function SellerCard({ seller, status }) {
+function SellerCard({ seller, status, complaintCount }) {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -88,7 +87,14 @@ function SellerCard({ seller, status }) {
           : <div className="h-12 w-12 rounded-full bg-cream" />}
         <div className="flex-1">
           <p className="font-medium">{seller.businessName}</p>
-          <p className="text-xs">{seller.city} · {seller.phone}</p>
+          <p className="text-xs">
+            {seller.city} · {seller.phone}
+            {complaintCount > 0 && (
+              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-red-700">
+                {complaintCount} {complaintCount === 1 ? 'complaint' : 'complaints'}
+              </span>
+            )}
+          </p>
         </div>
         <button onClick={toggle} className="text-sm text-emerald-brand underline">
           {open ? 'Hide details' : 'View details'}
@@ -141,8 +147,42 @@ function SellerCard({ seller, status }) {
   )
 }
 
+function Complaints({ complaints, sellers, counts, onOpenSupplier }) {
+  if (complaints.length === 0) return <p className="text-sm">No complaints.</p>
+
+  return (
+    <ul className="flex flex-col gap-3">
+      {complaints.map((c) => {
+        const seller = sellers.find((s) => s.id === c.sellerId)
+        const when = c.createdAt?.toDate?.().toLocaleDateString('en-ZA')
+        return (
+          <li key={c.id} className="rounded-xl bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">{c.sellerName || seller?.businessName}</p>
+                <p className="text-sm text-gold-deep">{c.listingTitle}{when ? ` · ${when}` : ''}</p>
+              </div>
+              <span className="rounded-full bg-red-100 px-3 py-1 text-xs text-red-700">
+                {counts[c.sellerId]} total
+              </span>
+            </div>
+            <p className="mt-2 whitespace-pre-line text-sm">{c.comment || 'No comment left.'}</p>
+            {seller && (
+              <button onClick={() => onOpenSupplier(statusOf(seller))}
+                className="mt-3 text-sm text-emerald-brand underline">
+                Go to supplier ({statusOf(seller)})
+              </button>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export default function Admin() {
   const [sellers, setSellers] = useState(null)
+  const [complaints, setComplaints] = useState([])
   const [tab, setTab] = useState('pending')
   const [error, setError] = useState('')
 
@@ -156,15 +196,39 @@ export default function Admin() {
     []
   )
 
+  useEffect(
+    () =>
+      onSnapshot(
+        query(collection(db, 'feedback'), where('satisfied', '==', false)),
+        (snap) => {
+          const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+          setComplaints(items)
+        },
+        (err) => console.error(err)
+      ),
+    []
+  )
+
   if (error) return <p className="p-6 text-center text-red-700">{error}</p>
   if (!sellers) return <p className="p-6 text-center">Loading…</p>
+
+  const counts = {}
+  complaints.forEach((c) => { counts[c.sellerId] = (counts[c.sellerId] || 0) + 1 })
 
   const groups = {
     pending: sellers.filter((s) => statusOf(s) === 'pending'),
     approved: sellers.filter((s) => statusOf(s) === 'approved'),
     closed: sellers.filter((s) => ['rejected', 'removed'].includes(statusOf(s))),
   }
-  const tabs = [['pending', 'Pending'], ['approved', 'Approved'], ['closed', 'Rejected / removed']]
+  const tabs = [
+    ['pending', 'Pending', groups.pending.length],
+    ['approved', 'Approved', groups.approved.length],
+    ['closed', 'Rejected / removed', groups.closed.length],
+    ['complaints', 'Complaints', complaints.length],
+  ]
+
+  const openSupplier = (status) => setTab(status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'closed')
 
   return (
     <main className="mx-auto max-w-3xl p-6">
@@ -174,22 +238,27 @@ export default function Admin() {
       </p>
 
       <div className="mb-6 flex flex-wrap gap-3">
-        {tabs.map(([v, label]) => (
+        {tabs.map(([v, label, n]) => (
           <button key={v} onClick={() => setTab(v)}
             className={`rounded-full px-4 py-2 text-sm ${
               tab === v ? 'bg-emerald-brand text-cream' : 'border border-gold-deep text-gold-deep'}`}>
-            {label} ({groups[v].length})
+            {label} ({n})
           </button>
         ))}
       </div>
 
-      {groups[tab].length === 0 && <p className="text-sm">Nobody here.</p>}
-
-      <ul className="flex flex-col gap-3">
-        {groups[tab].map((s) => (
-          <SellerCard key={s.id} seller={s} status={statusOf(s)} />
-        ))}
-      </ul>
+      {tab === 'complaints' ? (
+        <Complaints complaints={complaints} sellers={sellers} counts={counts} onOpenSupplier={openSupplier} />
+      ) : (
+        <>
+          {groups[tab].length === 0 && <p className="text-sm">Nobody here.</p>}
+          <ul className="flex flex-col gap-3">
+            {groups[tab].map((s) => (
+              <SellerCard key={s.id} seller={s} status={statusOf(s)} complaintCount={counts[s.id] || 0} />
+            ))}
+          </ul>
+        </>
+      )}
     </main>
   )
 }
