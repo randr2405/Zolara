@@ -6,6 +6,7 @@ export default function Signup() {
   const { signup } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'buyer' })
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -63,6 +64,19 @@ export default function Signup() {
         <input required type="password" minLength={6} placeholder="Password (6+ characters)"
           value={form.password} onChange={set('password')}
           className="rounded-lg border border-gold/50 bg-white p-3" />
+
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" required checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
+          <span>
+            I am 18 or older and I agree to the{' '}
+            <a href="/terms" target="_blank" rel="noreferrer"
+              className="text-emerald-brand underline">Terms of Use</a>
+            {' '}and the{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer"
+              className="text-emerald-brand underline">Privacy Policy</a>.
+          </span>
+        </label>
 
         {error && <p className="text-sm text-red-700">{error}</p>}
 

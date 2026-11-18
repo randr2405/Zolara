@@ -10,6 +10,8 @@ export default function Footer() {
         <nav className="flex flex-wrap gap-4">
           <Link to="/shop" className="text-emerald-brand">Shop</Link>
           <Link to="/supplier-rules" className="text-emerald-brand">Supplier rules</Link>
+          <Link to="/terms" className="text-emerald-brand">Terms</Link>
+          <Link to="/privacy" className="text-emerald-brand">Privacy</Link>
           <Link to="/signup" className="text-emerald-brand">Sell on Zolara</Link>
         </nav>
       </div>
