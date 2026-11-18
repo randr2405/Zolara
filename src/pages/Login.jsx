@@ -41,6 +41,9 @@ export default function Login() {
         </button>
       </form>
       <p className="mt-4 text-sm">
+        <Link to="/forgot-password" className="text-emerald-brand underline">Forgot your password?</Link>
+      </p>
+      <p className="mt-2 text-sm">
         New to Zolara? <Link to="/signup" className="text-emerald-brand underline">Create an account</Link>
       </p>
     </main>

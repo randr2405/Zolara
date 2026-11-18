@@ -20,6 +20,9 @@ import MyBookings from './pages/MyBookings.jsx'
 import SellerBookings from './pages/SellerBookings.jsx'
 import MyOrders from './pages/MyOrders.jsx'
 import SellerOrders from './pages/SellerOrders.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import Terms from './pages/Terms.jsx'
+import Privacy from './pages/Privacy.jsx'
 
 export default function App() {
   return (
@@ -31,6 +34,9 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/listing/:id/book" element={<ProtectedRoute><BookingForm /></ProtectedRoute>} />
