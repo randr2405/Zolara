@@ -18,9 +18,13 @@ export default function Navbar() {
               <>
                 <Link to="/seller" className="text-emerald-brand">Dashboard</Link>
                 <Link to="/seller/bookings" className="text-emerald-brand">Bookings</Link>
+                <Link to="/seller/orders" className="text-emerald-brand">Orders</Link>
               </>
             ) : (
-              <Link to="/my-bookings" className="text-emerald-brand">My bookings</Link>
+              <>
+                <Link to="/my-bookings" className="text-emerald-brand">My bookings</Link>
+                <Link to="/my-orders" className="text-emerald-brand">My orders</Link>
+              </>
             )}
             <Link to="/account" className="text-emerald-brand">
               {profile?.displayName || 'Account'}

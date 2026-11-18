@@ -18,10 +18,12 @@ export default function Account() {
           <>
             <Link to="/seller" className="text-emerald-brand underline">Go to your seller dashboard</Link>
             <Link to="/seller/bookings" className="text-emerald-brand underline">Manage your bookings</Link>
+            <Link to="/seller/orders" className="text-emerald-brand underline">Manage your orders</Link>
           </>
         ) : (
           <>
             <Link to="/my-bookings" className="text-emerald-brand underline">View your bookings</Link>
+            <Link to="/my-orders" className="text-emerald-brand underline">View your orders</Link>
             <Link to="/shop" className="text-emerald-brand underline">Browse the shop</Link>
           </>
         )}

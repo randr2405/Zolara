@@ -5,6 +5,7 @@ import Footer from './components/Footer.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import AdminRoute from './components/AdminRoute.jsx'
 import BookingForm from './components/BookingForm.jsx'
+import OrderForm from './components/OrderForm.jsx'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Signup from './pages/Signup.jsx'
@@ -17,6 +18,8 @@ import SupplierRules from './pages/SupplierRules.jsx'
 import Admin from './pages/Admin.jsx'
 import MyBookings from './pages/MyBookings.jsx'
 import SellerBookings from './pages/SellerBookings.jsx'
+import MyOrders from './pages/MyOrders.jsx'
+import SellerOrders from './pages/SellerOrders.jsx'
 
 export default function App() {
   return (
@@ -31,11 +34,14 @@ export default function App() {
             <Route path="/shop" element={<Shop />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/listing/:id/book" element={<ProtectedRoute><BookingForm /></ProtectedRoute>} />
+            <Route path="/listing/:id/buy" element={<ProtectedRoute><OrderForm /></ProtectedRoute>} />
             <Route path="/supplier-rules" element={<SupplierRules />} />
             <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
             <Route path="/my-bookings" element={<ProtectedRoute><MyBookings /></ProtectedRoute>} />
+            <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
             <Route path="/seller" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
             <Route path="/seller/bookings" element={<ProtectedRoute role="seller"><SellerBookings /></ProtectedRoute>} />
+            <Route path="/seller/orders" element={<ProtectedRoute role="seller"><SellerOrders /></ProtectedRoute>} />
             <Route path="/seller/listings/new" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
             <Route path="/seller/listings/:id/edit" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />

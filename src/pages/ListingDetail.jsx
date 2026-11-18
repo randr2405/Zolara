@@ -71,10 +71,17 @@ export default function ListingDetail() {
               {user ? 'Book now' : 'Log in to book'}
             </Link>
           )
+        ) : isOwner ? (
+          <p className="text-sm">This is your own product.</p>
+        ) : !listing.stock || listing.stock < 1 ? (
+          <p className="text-sm font-medium text-red-700">Out of stock</p>
         ) : (
-          <button disabled className="rounded-full bg-emerald-brand px-8 py-3 text-cream opacity-60">
-            Buy now (coming soon)
-          </button>
+          <Link
+            to={user ? `/listing/${id}/buy` : '/login'}
+            className="inline-block rounded-full bg-emerald-brand px-8 py-3 text-cream"
+          >
+            {user ? 'Buy now' : 'Log in to buy'}
+          </Link>
         )}
         <p className="mt-4">
           <Link to="/shop" className="text-sm text-emerald-brand underline">← Back to shop</Link>
