@@ -1,5 +1,5 @@
 export const OWNER = 'R&R Agencies'
-export const CONTACT_EMAIL = 'REPLACE_WITH_YOUR_EMAIL'
+export const CONTACT_EMAIL = 'info@rragencies.co.za'
 export const LAST_UPDATED = '18 November 2026'
 
 export const TERMS = {
