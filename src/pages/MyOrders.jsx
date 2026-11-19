@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
+import { paymentErrorMessage, startPayment } from '../lib/payments.js'
 
 function FeedbackForm({ order, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -80,6 +81,7 @@ export default function MyOrders() {
   const [orders, setOrders] = useState(null)
   const [feedback, setFeedback] = useState({})
   const [error, setError] = useState('')
+  const [payingId, setPayingId] = useState('')
 
   useEffect(
     () =>
@@ -101,6 +103,18 @@ export default function MyOrders() {
     [user.uid]
   )
 
+  async function pay(o) {
+    setError('')
+    setPayingId(o.id)
+    try {
+      await startPayment('order', o.id)
+    } catch (err) {
+      console.error(err)
+      setError(paymentErrorMessage(err))
+      setPayingId('')
+    }
+  }
+
   async function download() {
     setError('')
     try {
@@ -117,6 +131,7 @@ export default function MyOrders() {
             { header: 'Unit price', key: 'price', type: 'cents', width: 16 },
             { header: 'Total', key: 'total', type: 'cents', width: 16 },
             { header: 'Status', key: 'status', width: 20 },
+            { header: 'Payment', key: 'payment', width: 14 },
             { header: 'Satisfied', key: 'satisfied', width: 12 },
             { header: 'Your feedback', key: 'comment', width: 40 },
           ],
@@ -130,6 +145,7 @@ export default function MyOrders() {
               price: o.priceCents,
               total: o.totalCents,
               status: ORDER_STATUS[o.status] || o.status,
+              payment: o.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
               satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',
               comment: f?.comment || '',
             }
@@ -163,41 +179,56 @@ export default function MyOrders() {
       )}
 
       <ul className="flex flex-col gap-3">
-        {orders.map((o) => (
-          <li key={o.id} className="rounded-xl bg-white p-4">
-            <div className="flex items-start gap-3">
-              {o.thumb
-                ? <img src={o.thumb} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                : <div className="h-16 w-16 rounded-lg bg-cream" />}
-              <div className="flex-1">
-                <p className="font-medium">{o.listingTitle}</p>
-                <p className="text-sm">{o.sellerName} · {o.quantity} × {formatZAR(o.priceCents)}</p>
-                <p className="text-sm text-gold-deep">Total {formatZAR(o.totalCents)}</p>
+        {orders.map((o) => {
+          const paid = o.paymentStatus === 'paid'
+          return (
+            <li key={o.id} className="rounded-xl bg-white p-4">
+              <div className="flex items-start gap-3">
+                {o.thumb
+                  ? <img src={o.thumb} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                  : <div className="h-16 w-16 rounded-lg bg-cream" />}
+                <div className="flex-1">
+                  <p className="font-medium">{o.listingTitle}</p>
+                  <p className="text-sm">{o.sellerName} · {o.quantity} × {formatZAR(o.priceCents)}</p>
+                  <p className="text-sm text-gold-deep">Total {formatZAR(o.totalCents)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="rounded-full bg-cream px-3 py-1 text-xs">{ORDER_STATUS[o.status]}</span>
+                  {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                </div>
               </div>
-              <span className="rounded-full bg-cream px-3 py-1 text-xs">{ORDER_STATUS[o.status]}</span>
-            </div>
 
-            {o.status === 'requested' && (
-              <button
-                onClick={() =>
-                  window.confirm('Cancel this order?') &&
-                  updateDoc(doc(db, 'orders', o.id), { status: 'cancelled', updatedAt: serverTimestamp() })
-                }
-                className="mt-3 text-sm text-red-700 underline">
-                Cancel order
-              </button>
-            )}
+              {o.status === 'confirmed' && !paid && (
+                <div className="mt-3">
+                  <button disabled={payingId === o.id} onClick={() => pay(o)}
+                    className="rounded-full bg-emerald-brand px-5 py-2 text-sm text-cream disabled:opacity-60">
+                    {payingId === o.id ? 'Opening PayFast…' : `Pay now · ${formatZAR(o.totalCents)}`}
+                  </button>
+                </div>
+              )}
 
-            {o.status === 'delivered' && !feedback[o.id] && <FeedbackForm order={o} user={user} />}
-            {o.status === 'delivered' && feedback[o.id] && (
-              <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
-                {feedback[o.id].satisfied
-                  ? 'Thank you for your feedback. We are glad you were happy.'
-                  : 'Thank you for telling us. We take service seriously and will look into this.'}
-              </p>
-            )}
-          </li>
-        ))}
+              {o.status === 'requested' && (
+                <button
+                  onClick={() =>
+                    window.confirm('Cancel this order?') &&
+                    updateDoc(doc(db, 'orders', o.id), { status: 'cancelled', updatedAt: serverTimestamp() })
+                  }
+                  className="mt-3 text-sm text-red-700 underline">
+                  Cancel order
+                </button>
+              )}
+
+              {o.status === 'delivered' && !feedback[o.id] && <FeedbackForm order={o} user={user} />}
+              {o.status === 'delivered' && feedback[o.id] && (
+                <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
+                  {feedback[o.id].satisfied
+                    ? 'Thank you for your feedback. We are glad you were happy.'
+                    : 'Thank you for telling us. We take service seriously and will look into this.'}
+                </p>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </main>
   )

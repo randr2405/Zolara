@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
+import { paymentErrorMessage, startPayment } from '../lib/payments.js'
 
 function FeedbackForm({ booking, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -79,6 +80,7 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState(null)
   const [feedback, setFeedback] = useState({})
   const [error, setError] = useState('')
+  const [payingId, setPayingId] = useState('')
 
   useEffect(
     () =>
@@ -100,6 +102,18 @@ export default function MyBookings() {
     [user.uid]
   )
 
+  async function pay(b) {
+    setError('')
+    setPayingId(b.id)
+    try {
+      await startPayment('booking', b.id)
+    } catch (err) {
+      console.error(err)
+      setError(paymentErrorMessage(err))
+      setPayingId('')
+    }
+  }
+
   async function download() {
     setError('')
     try {
@@ -115,6 +129,7 @@ export default function MyBookings() {
             { header: 'Booking date', key: 'date', type: 'date', width: 16 },
             { header: 'Time', key: 'time', width: 10 },
             { header: 'Status', key: 'status', width: 22 },
+            { header: 'Payment', key: 'payment', width: 14 },
             { header: 'Price', key: 'price', type: 'cents', width: 16 },
             { header: 'Satisfied', key: 'satisfied', width: 12 },
             { header: 'Your feedback', key: 'comment', width: 40 },
@@ -128,6 +143,7 @@ export default function MyBookings() {
               date: b.date ? new Date(`${b.date}T12:00:00`) : null,
               time: b.time,
               status: BOOKING_STATUS[b.status] || b.status,
+              payment: b.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
               price: b.priceCents,
               satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',
               comment: f?.comment || '',
@@ -162,38 +178,59 @@ export default function MyBookings() {
       )}
 
       <ul className="flex flex-col gap-3">
-        {bookings.map((b) => (
-          <li key={b.id} className="rounded-xl bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{b.listingTitle}</p>
-                <p className="text-sm">{b.sellerName} · {formatZAR(b.priceCents)}</p>
-                <p className="text-sm text-gold-deep">{formatWhen(b.date, b.time)}</p>
+        {bookings.map((b) => {
+          const paid = b.paymentStatus === 'paid'
+          return (
+            <li key={b.id} className="rounded-xl bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{b.listingTitle}</p>
+                  <p className="text-sm">{b.sellerName} · {formatZAR(b.priceCents)}</p>
+                  <p className="text-sm text-gold-deep">{formatWhen(b.date, b.time)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
+                  {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                </div>
               </div>
-              <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
-            </div>
 
-            {(b.status === 'requested' || b.status === 'confirmed') && (
-              <button
-                onClick={() =>
-                  window.confirm('Cancel this booking?') &&
-                  updateDoc(doc(db, 'bookings', b.id), { status: 'cancelled', updatedAt: serverTimestamp() })
-                }
-                className="mt-3 text-sm text-red-700 underline">
-                Cancel booking
-              </button>
-            )}
+              {b.status === 'confirmed' && !paid && (
+                <div className="mt-3 flex flex-wrap items-center gap-4">
+                  <button disabled={payingId === b.id} onClick={() => pay(b)}
+                    className="rounded-full bg-emerald-brand px-5 py-2 text-sm text-cream disabled:opacity-60">
+                    {payingId === b.id ? 'Opening PayFast…' : `Pay now · ${formatZAR(b.priceCents)}`}
+                  </button>
+                </div>
+              )}
 
-            {b.status === 'completed' && !feedback[b.id] && <FeedbackForm booking={b} user={user} />}
-            {b.status === 'completed' && feedback[b.id] && (
-              <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
-                {feedback[b.id].satisfied
-                  ? 'Thank you for your feedback. We are glad you were happy.'
-                  : 'Thank you for telling us. We take service seriously and will look into this.'}
-              </p>
-            )}
-          </li>
-        ))}
+              {(b.status === 'requested' || (b.status === 'confirmed' && !paid)) && (
+                <button
+                  onClick={() =>
+                    window.confirm('Cancel this booking?') &&
+                    updateDoc(doc(db, 'bookings', b.id), { status: 'cancelled', updatedAt: serverTimestamp() })
+                  }
+                  className="mt-3 block text-sm text-red-700 underline">
+                  Cancel booking
+                </button>
+              )}
+
+              {paid && b.status === 'confirmed' && (
+                <p className="mt-3 text-xs">
+                  Payment received. To cancel a paid booking, please contact the Zolara team.
+                </p>
+              )}
+
+              {b.status === 'completed' && !feedback[b.id] && <FeedbackForm booking={b} user={user} />}
+              {b.status === 'completed' && feedback[b.id] && (
+                <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
+                  {feedback[b.id].satisfied
+                    ? 'Thank you for your feedback. We are glad you were happy.'
+                    : 'Thank you for telling us. We take service seriously and will look into this.'}
+                </p>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </main>
   )

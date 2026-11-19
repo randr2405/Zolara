@@ -37,6 +37,7 @@ async function cancelConfirmedOrder(order) {
     const listing = await tx.get(listingRef)
     const current = await tx.get(orderRef)
     if (!current.exists() || current.data().status !== 'confirmed') throw new Error('status')
+    if (current.data().paymentStatus === 'paid') throw new Error('paid')
     if (listing.exists()) {
       tx.update(listingRef, { stock: (listing.data().stock ?? 0) + order.quantity })
     }
@@ -78,6 +79,7 @@ export default function SellerOrders() {
       console.error(err)
       if (err.message === 'stock') setError('Not enough stock left to accept this order.')
       else if (err.message === 'status') setError('This order has already changed. Please refresh.')
+      else if (err.message === 'paid') setError('This order has been paid. Please contact the Zolara team to cancel it.')
       else setError('Could not update the order. Please try again.')
     }
   }
@@ -97,6 +99,7 @@ export default function SellerOrders() {
             { header: 'Unit price', key: 'price', type: 'cents', width: 16 },
             { header: 'Total', key: 'total', type: 'cents', width: 16 },
             { header: 'Status', key: 'status', width: 20 },
+            { header: 'Payment', key: 'payment', width: 14 },
             { header: 'Customer', key: 'customer', width: 24 },
             { header: 'Phone', key: 'phone', width: 16 },
             { header: 'Email', key: 'email', width: 28 },
@@ -110,6 +113,7 @@ export default function SellerOrders() {
             price: o.priceCents,
             total: o.totalCents,
             status: ORDER_STATUS[o.status] || o.status,
+            payment: o.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
             customer: o.buyerName,
             phone: o.buyerPhone,
             email: o.buyerEmail,
@@ -150,53 +154,62 @@ export default function SellerOrders() {
       {orders.length === 0 && <p className="text-sm">No orders yet.</p>}
 
       <ul className="flex flex-col gap-3">
-        {orders.map((o) => (
-          <li key={o.id} className="rounded-xl bg-white p-4">
-            <div className="flex items-start gap-3">
-              {o.thumb
-                ? <img src={o.thumb} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                : <div className="h-16 w-16 rounded-lg bg-cream" />}
-              <div className="flex-1">
-                <p className="font-medium">{o.listingTitle}</p>
-                <p className="text-sm">{o.quantity} × {formatZAR(o.priceCents)}</p>
-                <p className="text-sm text-gold-deep">Total {formatZAR(o.totalCents)}</p>
+        {orders.map((o) => {
+          const paid = o.paymentStatus === 'paid'
+          return (
+            <li key={o.id} className="rounded-xl bg-white p-4">
+              <div className="flex items-start gap-3">
+                {o.thumb
+                  ? <img src={o.thumb} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                  : <div className="h-16 w-16 rounded-lg bg-cream" />}
+                <div className="flex-1">
+                  <p className="font-medium">{o.listingTitle}</p>
+                  <p className="text-sm">{o.quantity} × {formatZAR(o.priceCents)}</p>
+                  <p className="text-sm text-gold-deep">Total {formatZAR(o.totalCents)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="rounded-full bg-cream px-3 py-1 text-xs">{ORDER_STATUS[o.status]}</span>
+                  {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                </div>
               </div>
-              <span className="rounded-full bg-cream px-3 py-1 text-xs">{ORDER_STATUS[o.status]}</span>
-            </div>
 
-            <div className="mt-2 text-sm">
-              <p>Customer: {o.buyerName}</p>
-              <p>Phone: {o.buyerPhone} · Email: {o.buyerEmail}</p>
-              <p className="whitespace-pre-line">Deliver to: {o.address}</p>
-              {o.notes && <p className="whitespace-pre-line">Notes: {o.notes}</p>}
-            </div>
+              <div className="mt-2 text-sm">
+                <p>Customer: {o.buyerName}</p>
+                <p>Phone: {o.buyerPhone} · Email: {o.buyerEmail}</p>
+                <p className="whitespace-pre-line">Deliver to: {o.address}</p>
+                {o.notes && <p className="whitespace-pre-line">Notes: {o.notes}</p>}
+              </div>
 
-            <div className="mt-3 flex flex-wrap gap-3">
-              {o.status === 'requested' && (
-                <>
-                  <button onClick={() => run(() => acceptOrder(o))}
-                    className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Accept</button>
-                  <button onClick={() => window.confirm('Decline this order?') && run(() => setStatus(o.id, 'declined'))}
-                    className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Decline</button>
-                </>
-              )}
-              {o.status === 'confirmed' && (
-                <>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {o.status === 'requested' && (
+                  <>
+                    <button onClick={() => run(() => acceptOrder(o))}
+                      className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Accept</button>
+                    <button onClick={() => window.confirm('Decline this order?') && run(() => setStatus(o.id, 'declined'))}
+                      className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Decline</button>
+                  </>
+                )}
+                {o.status === 'confirmed' && !paid && (
+                  <>
+                    <p className="text-sm text-gold-deep">Waiting for the customer to pay.</p>
+                    <button onClick={() => window.confirm('Cancel this order? The stock will be returned.') && run(() => cancelConfirmedOrder(o))}
+                      className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Cancel order</button>
+                  </>
+                )}
+                {o.status === 'confirmed' && paid && (
                   <button onClick={() => window.confirm('Mark this order as shipped?') && run(() => setStatus(o.id, 'shipped'))}
                     className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as shipped</button>
-                  <button onClick={() => window.confirm('Cancel this order? The stock will be returned.') && run(() => cancelConfirmedOrder(o))}
-                    className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Cancel order</button>
-                </>
-              )}
-              {o.status === 'shipped' && (
-                <button onClick={() => window.confirm('Mark this order as delivered?') && run(() => setStatus(o.id, 'delivered'))}
-                  className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as delivered</button>
-              )}
-            </div>
+                )}
+                {o.status === 'shipped' && (
+                  <button onClick={() => window.confirm('Mark this order as delivered?') && run(() => setStatus(o.id, 'delivered'))}
+                    className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as delivered</button>
+                )}
+              </div>
 
-            {feedback[o.id] && <SellerFeedback docId={o.id} data={feedback[o.id]} />}
-          </li>
-        ))}
+              {feedback[o.id] && <SellerFeedback docId={o.id} data={feedback[o.id]} />}
+            </li>
+          )
+        })}
       </ul>
     </main>
   )

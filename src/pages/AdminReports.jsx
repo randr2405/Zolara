@@ -35,9 +35,11 @@ export default function AdminReports() {
   useEffect(() => onSnapshot(collection(db, 'sellers'),
     (s) => setSellers(s.docs.map((d) => ({ id: d.id, ...d.data() }))), fail('suppliers')), [])
   useEffect(() => onSnapshot(query(collection(db, 'orders'), where('status', '==', 'delivered')),
-    (s) => setOrders(s.docs.map((d) => ({ id: d.id, ...d.data() }))), fail('orders')), [])
+    (s) => setOrders(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((o) => o.paymentStatus === 'paid')),
+    fail('orders')), [])
   useEffect(() => onSnapshot(query(collection(db, 'bookings'), where('status', '==', 'completed')),
-    (s) => setBookings(s.docs.map((d) => ({ id: d.id, ...d.data() }))), fail('bookings')), [])
+    (s) => setBookings(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => b.paymentStatus === 'paid')),
+    fail('bookings')), [])
   useEffect(() => onSnapshot(collection(db, 'ledger'),
     (s) => setLedger(s.docs.map((d) => ({ id: d.id, ...d.data() }))), fail('the ledger')), [])
   useEffect(() => onSnapshot(collection(db, 'payoutDetails'),
@@ -140,7 +142,7 @@ export default function AdminReports() {
 
   async function exportExcel() {
     setError('')
-    const period = `Period ${from} to ${to}. Sales count when a booking is completed or an order is delivered.`
+    const period = `Period ${from} to ${to}. Sales count when a booking is completed or an order is delivered, and the customer has paid.`
     const entries = rows
       .flatMap((r) => r.entries)
       .sort((a, b) => millis(b.createdAt) - millis(a.createdAt))
@@ -319,8 +321,8 @@ export default function AdminReports() {
       </ul>
 
       <p className="mt-6 text-xs">
-        Sales count when a booking is completed or an order is delivered. Online payments are not
-        connected yet, so these figures show what suppliers have earned, not money Zolara has received.
+        Sales count when the customer has paid through PayFast and the booking is completed or the
+        order is delivered. PayFast fees are not deducted from these figures.
       </p>
     </main>
   )

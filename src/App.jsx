@@ -27,6 +27,7 @@ import Privacy from './pages/Privacy.jsx'
 import NotFound from './pages/NotFound.jsx'
 import SellerPayments from './pages/SellerPayments.jsx'
 import AdminReports from './pages/AdminReports.jsx'
+import PaymentResult from './pages/PaymentResult.jsx'
 
 export default function App() {
   return (
@@ -50,6 +51,8 @@ export default function App() {
             <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
             <Route path="/my-bookings" element={<ProtectedRoute><MyBookings /></ProtectedRoute>} />
             <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+            <Route path="/payment/success" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
+            <Route path="/payment/cancelled" element={<ProtectedRoute><PaymentResult cancelled /></ProtectedRoute>} />
             <Route path="/seller" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
             <Route path="/seller/bookings" element={<ProtectedRoute role="seller"><SellerBookings /></ProtectedRoute>} />
             <Route path="/seller/payments" element={<ProtectedRoute role="seller"><SellerPayments /></ProtectedRoute>} />

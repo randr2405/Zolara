@@ -134,7 +134,11 @@ export default function SellerPayments() {
   useEffect(
     () =>
       onSnapshot(query(collection(db, 'orders'), where('sellerId', '==', user.uid)), (snap) =>
-        setOrders(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((o) => o.status === 'delivered'))
+        setOrders(
+          snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((o) => o.status === 'delivered' && o.paymentStatus === 'paid')
+        )
       ),
     [user.uid]
   )
@@ -142,7 +146,11 @@ export default function SellerPayments() {
   useEffect(
     () =>
       onSnapshot(query(collection(db, 'bookings'), where('sellerId', '==', user.uid)), (snap) =>
-        setBookings(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => b.status === 'completed'))
+        setBookings(
+          snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((b) => b.status === 'completed' && b.paymentStatus === 'paid')
+        )
       ),
     [user.uid]
   )
@@ -175,7 +183,7 @@ export default function SellerPayments() {
         {
           name: 'Summary',
           title: 'Zolara · Supplier statement',
-          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}. A sale counts once a booking is completed or an order is delivered.`,
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}. A sale counts once it is paid and the booking is completed or the order is delivered.`,
           columns: [
             { header: 'Measure', key: 'measure', width: 30 },
             { header: 'Amount', key: 'amount', type: 'cents', width: 22 },
@@ -208,7 +216,7 @@ export default function SellerPayments() {
         {
           name: 'Completed sales',
           title: 'Zolara · Completed sales',
-          subtitle: 'Bookings marked completed and orders marked delivered.',
+          subtitle: 'Paid bookings marked completed and paid orders marked delivered.',
           columns: [
             { header: 'Date', key: 'date', type: 'datetime', width: 20 },
             { header: 'Item', key: 'item', width: 34 },
@@ -256,8 +264,9 @@ export default function SellerPayments() {
         <p className="mb-6 text-xs">Adjustments of {formatZAR(adjustments)} are included in your balance.</p>
       )}
       <p className="mb-8 text-xs">
-        A sale counts once a booking is marked completed or an order is marked delivered. Zolara pays
-        your balance every two weeks, after the R250 monthly subscription is deducted.
+        A sale counts once the customer has paid through PayFast and the booking is marked completed
+        or the order is marked delivered. Zolara pays your balance every two weeks, after the R250
+        monthly subscription is deducted.
       </p>
 
       <section className="mb-8 rounded-xl bg-white p-4">

@@ -65,6 +65,7 @@ export default function SellerBookings() {
             { header: 'Booking date', key: 'date', type: 'date', width: 16 },
             { header: 'Time', key: 'time', width: 10 },
             { header: 'Status', key: 'status', width: 22 },
+            { header: 'Payment', key: 'payment', width: 14 },
             { header: 'Price', key: 'price', type: 'cents', width: 16 },
             { header: 'Customer', key: 'customer', width: 24 },
             { header: 'Phone', key: 'phone', width: 16 },
@@ -77,6 +78,7 @@ export default function SellerBookings() {
             date: b.date ? new Date(`${b.date}T12:00:00`) : null,
             time: b.time,
             status: BOOKING_STATUS[b.status] || b.status,
+            payment: b.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
             price: b.priceCents,
             customer: b.buyerName,
             phone: b.buyerPhone,
@@ -117,42 +119,51 @@ export default function SellerBookings() {
       {bookings.length === 0 && <p className="text-sm">No booking requests yet.</p>}
 
       <ul className="flex flex-col gap-3">
-        {bookings.map((b) => (
-          <li key={b.id} className="rounded-xl bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{b.listingTitle}</p>
-                <p className="text-sm text-gold-deep">{formatWhen(b.date, b.time)} · {formatZAR(b.priceCents)}</p>
+        {bookings.map((b) => {
+          const paid = b.paymentStatus === 'paid'
+          return (
+            <li key={b.id} className="rounded-xl bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{b.listingTitle}</p>
+                  <p className="text-sm text-gold-deep">{formatWhen(b.date, b.time)} · {formatZAR(b.priceCents)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
+                  {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                </div>
               </div>
-              <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
-            </div>
 
-            <div className="mt-2 text-sm">
-              <p>Customer: {b.buyerName}</p>
-              <p>Phone: {b.buyerPhone} · Email: {b.buyerEmail}</p>
-              {b.notes && <p className="whitespace-pre-line">Notes: {b.notes}</p>}
-            </div>
+              <div className="mt-2 text-sm">
+                <p>Customer: {b.buyerName}</p>
+                <p>Phone: {b.buyerPhone} · Email: {b.buyerEmail}</p>
+                {b.notes && <p className="whitespace-pre-line">Notes: {b.notes}</p>}
+              </div>
 
-            <div className="mt-3 flex gap-3">
-              {b.status === 'requested' && (
-                <>
-                  <button onClick={() => act(b.id, 'confirmed')}
-                    className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Accept</button>
-                  <button onClick={() => window.confirm('Decline this booking?') && act(b.id, 'declined')}
-                    className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Decline</button>
-                </>
-              )}
-              {b.status === 'confirmed' && (
-                <button onClick={() => window.confirm('Mark this service as completed?') && act(b.id, 'completed')}
-                  className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">
-                  Mark as completed
-                </button>
-              )}
-            </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {b.status === 'requested' && (
+                  <>
+                    <button onClick={() => act(b.id, 'confirmed')}
+                      className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Accept</button>
+                    <button onClick={() => window.confirm('Decline this booking?') && act(b.id, 'declined')}
+                      className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Decline</button>
+                  </>
+                )}
+                {b.status === 'confirmed' && !paid && (
+                  <p className="text-sm text-gold-deep">Waiting for the customer to pay.</p>
+                )}
+                {b.status === 'confirmed' && paid && (
+                  <button onClick={() => window.confirm('Mark this service as completed?') && act(b.id, 'completed')}
+                    className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">
+                    Mark as completed
+                  </button>
+                )}
+              </div>
 
-            {feedback[b.id] && <SellerFeedback docId={b.id} data={feedback[b.id]} />}
-          </li>
-        ))}
+              {feedback[b.id] && <SellerFeedback docId={b.id} data={feedback[b.id]} />}
+            </li>
+          )
+        })}
       </ul>
     </main>
   )

@@ -99,8 +99,8 @@ export default function BookingForm() {
         </label>
 
         <p className="text-xs">
-          This sends a request to the supplier. No payment is taken on Zolara yet, so the supplier
-          will contact you to confirm the details and arrange payment.
+          This sends a request to the supplier. No payment is taken now. Once the supplier accepts,
+          you can pay securely online through PayFast from My bookings.
         </p>
 
         {error && <p className="text-sm text-red-700">{error}</p>}
