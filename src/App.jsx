@@ -24,6 +24,8 @@ import ForgotPassword from './pages/ForgotPassword.jsx'
 import Terms from './pages/Terms.jsx'
 import Privacy from './pages/Privacy.jsx'
 import NotFound from './pages/NotFound.jsx'
+import SellerPayments from './pages/SellerPayments.jsx'
+import AdminReports from './pages/AdminReports.jsx'
 
 export default function App() {
   return (
@@ -48,10 +50,12 @@ export default function App() {
             <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
             <Route path="/seller" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
             <Route path="/seller/bookings" element={<ProtectedRoute role="seller"><SellerBookings /></ProtectedRoute>} />
+            <Route path="/seller/payments" element={<ProtectedRoute role="seller"><SellerPayments /></ProtectedRoute>} />
             <Route path="/seller/orders" element={<ProtectedRoute role="seller"><SellerOrders /></ProtectedRoute>} />
             <Route path="/seller/listings/new" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
             <Route path="/seller/listings/:id/edit" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute><AdminRoute><AdminReports /></AdminRoute></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

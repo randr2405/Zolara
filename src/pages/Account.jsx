@@ -19,6 +19,7 @@ export default function Account() {
             <Link to="/seller" className="text-emerald-brand underline">Go to your seller dashboard</Link>
             <Link to="/seller/bookings" className="text-emerald-brand underline">Manage your bookings</Link>
             <Link to="/seller/orders" className="text-emerald-brand underline">Manage your orders</Link>
+            <Link to="/seller/payments" className="text-emerald-brand underline">Payments and banking details</Link>
           </>
         ) : (
           <>

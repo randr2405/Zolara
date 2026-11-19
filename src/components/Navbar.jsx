@@ -19,6 +19,7 @@ export default function Navbar() {
                 <Link to="/seller" className="text-emerald-brand">Dashboard</Link>
                 <Link to="/seller/bookings" className="text-emerald-brand">Bookings</Link>
                 <Link to="/seller/orders" className="text-emerald-brand">Orders</Link>
+                <Link to="/seller/payments" className="text-emerald-brand">Payments</Link>
               </>
             ) : (
               <>

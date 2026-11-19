@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, where, writeBatch,
 } from 'firebase/firestore'
@@ -236,6 +237,9 @@ export default function Admin() {
       <h1 className="mb-1 text-2xl font-semibold text-emerald-brand">Admin: suppliers</h1>
       <p className="mb-6 text-sm">
         Approving a supplier makes their listings visible to customers. Rejecting or removing hides them.
+      </p>
+      <p className="mb-6 text-sm">
+        <Link to="/admin/reports" className="text-emerald-brand underline">Payments and reports</Link>
       </p>
 
       <div className="mb-6 flex flex-wrap gap-3">
