@@ -166,15 +166,20 @@ export default function SellerPayments() {
   )
 
   const sales = [
-    ...orders.map((o) => ({ id: o.id, title: o.listingTitle, kind: 'Order', cents: o.totalCents, at: o.updatedAt || o.createdAt })),
-    ...bookings.map((b) => ({ id: b.id, title: b.listingTitle, kind: 'Booking', cents: b.priceCents, at: b.updatedAt || b.createdAt })),
+    ...orders.map((o) => ({
+      id: o.id, title: o.listingTitle, kind: 'Order', cents: o.totalCents, fee: o.feeCents || 0, at: o.updatedAt || o.createdAt,
+    })),
+    ...bookings.map((b) => ({
+      id: b.id, title: b.listingTitle, kind: 'Booking', cents: b.priceCents, fee: b.feeCents || 0, at: b.updatedAt || b.createdAt,
+    })),
   ].sort((a, b) => millis(b.at) - millis(a.at))
 
   const earned = sum(sales, (s) => s.cents || 0)
+  const fees = sum(sales, (s) => s.fee)
   const subscriptions = sum(ledger.filter((l) => l.type === 'subscription'), (l) => l.effectCents)
   const paid = sum(ledger.filter((l) => l.type === 'payout'), (l) => l.effectCents)
   const adjustments = sum(ledger.filter((l) => l.type === 'adjustment'), (l) => l.effectCents)
-  const balance = earned + subscriptions + paid + adjustments
+  const balance = earned - fees + subscriptions + paid + adjustments
 
   async function download() {
     setError('')
@@ -190,6 +195,7 @@ export default function SellerPayments() {
           ],
           rows: [
             { measure: 'Sales completed', amount: earned },
+            { measure: 'PayFast fees', amount: -fees },
             { measure: 'Subscription', amount: subscriptions },
             { measure: 'Paid to you', amount: paid },
             { measure: 'Adjustments', amount: adjustments },
@@ -222,8 +228,17 @@ export default function SellerPayments() {
             { header: 'Item', key: 'item', width: 34 },
             { header: 'Type', key: 'kind', width: 14 },
             { header: 'Amount', key: 'amount', type: 'cents', width: 18, total: true },
+            { header: 'PayFast fee', key: 'fee', type: 'cents', width: 16, total: true },
+            { header: 'You receive', key: 'net', type: 'cents', width: 18, total: true },
           ],
-          rows: sales.map((s) => ({ date: s.at, item: s.title, kind: s.kind, amount: s.cents })),
+          rows: sales.map((s) => ({
+            date: s.at,
+            item: s.title,
+            kind: s.kind,
+            amount: s.cents,
+            fee: -s.fee,
+            net: (s.cents || 0) - s.fee,
+          })),
         },
       ])
     } catch (err) {
@@ -247,9 +262,10 @@ export default function SellerPayments() {
 
       {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
         {[
           ['Sales completed', formatZAR(earned)],
+          ['PayFast fees', formatZAR(-fees)],
           ['Subscription', formatZAR(subscriptions)],
           ['Paid to you', formatZAR(paid)],
           ['Balance owed to you', formatZAR(balance)],
@@ -265,8 +281,8 @@ export default function SellerPayments() {
       )}
       <p className="mb-8 text-xs">
         A sale counts once the customer has paid through PayFast and the booking is marked completed
-        or the order is marked delivered. Zolara pays your balance every two weeks, after the R250
-        monthly subscription is deducted.
+        or the order is marked delivered. Zolara pays your balance every two weeks, after PayFast’s
+        fee on each sale and the R250 monthly subscription are deducted.
       </p>
 
       <section className="mb-8 rounded-xl bg-white p-4">
@@ -302,7 +318,10 @@ export default function SellerPayments() {
                 <p className="font-medium">{s.title}</p>
                 <p className="text-xs text-gold-deep">{formatDate(s.at)}</p>
               </div>
-              <p>{formatZAR(s.cents)}</p>
+              <div className="text-right">
+                <p>{formatZAR(s.cents)}</p>
+                {s.fee > 0 && <p className="text-xs text-gold-deep">PayFast fee {formatZAR(-s.fee)}</p>}
+              </div>
             </li>
           ))}
         </ul>

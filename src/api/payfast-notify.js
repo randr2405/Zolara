@@ -80,6 +80,8 @@ export default async function handler(req, res) {
       return res.status(200).end()
     }
 
+    const feeCents = Math.abs(Math.round((parseFloat(data.amount_fee) || 0) * 100))
+
     await adminDb.runTransaction(async (tx) => {
       const current = await tx.get(payRef)
       const p = current.data()
@@ -93,6 +95,7 @@ export default async function handler(req, res) {
         amountGross: gross,
         amountFee: parseFloat(data.amount_fee) || 0,
         amountNet: parseFloat(data.amount_net) || 0,
+        feeCents,
         needsAttention: !itemOk,
         paidAt: FieldValue.serverTimestamp(),
       })
@@ -101,6 +104,7 @@ export default async function handler(req, res) {
           paymentStatus: 'paid',
           paymentId: payRef.id,
           paidCents: p.amountCents,
+          feeCents,
           paidAt: FieldValue.serverTimestamp(),
         })
       }

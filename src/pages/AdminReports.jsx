@@ -26,6 +26,7 @@ export default function AdminReports() {
   const [orders, setOrders] = useState([])
   const [bookings, setBookings] = useState([])
   const [ledger, setLedger] = useState([])
+  const [payments, setPayments] = useState([])
   const [banks, setBanks] = useState({})
   const [open, setOpen] = useState('')
   const [error, setError] = useState('')
@@ -42,6 +43,12 @@ export default function AdminReports() {
     fail('bookings')), [])
   useEffect(() => onSnapshot(collection(db, 'ledger'),
     (s) => setLedger(s.docs.map((d) => ({ id: d.id, ...d.data() }))), fail('the ledger')), [])
+  useEffect(() => onSnapshot(collection(db, 'payments'),
+    (s) => setPayments(
+      s.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => millis(b.createdAt) - millis(a.createdAt))
+    ), fail('payments')), [])
   useEffect(() => onSnapshot(collection(db, 'payoutDetails'),
     (s) => {
       const map = {}
@@ -52,8 +59,12 @@ export default function AdminReports() {
   const rows = useMemo(() => {
     if (!sellers) return []
     const sales = [
-      ...orders.map((o) => ({ sellerId: o.sellerId, cents: o.totalCents || 0, at: millis(o.updatedAt || o.createdAt) })),
-      ...bookings.map((b) => ({ sellerId: b.sellerId, cents: b.priceCents || 0, at: millis(b.updatedAt || b.createdAt) })),
+      ...orders.map((o) => ({
+        sellerId: o.sellerId, cents: o.totalCents || 0, fee: o.feeCents || 0, at: millis(o.updatedAt || o.createdAt),
+      })),
+      ...bookings.map((b) => ({
+        sellerId: b.sellerId, cents: b.priceCents || 0, fee: b.feeCents || 0, at: millis(b.updatedAt || b.createdAt),
+      })),
     ]
     const lo = startOfDay(from)
     const hi = endOfDay(to)
@@ -62,13 +73,14 @@ export default function AdminReports() {
         const mine = sales.filter((x) => x.sellerId === s.id)
         const entries = ledger.filter((l) => l.sellerId === s.id)
         const earned = sum(mine, (x) => x.cents)
+        const fees = sum(mine, (x) => x.fee)
         const periodSales = sum(mine.filter((x) => x.at >= lo && x.at <= hi), (x) => x.cents)
         const subscriptions = sum(entries.filter((l) => l.type === 'subscription'), (l) => l.effectCents)
         const paid = sum(entries.filter((l) => l.type === 'payout'), (l) => l.effectCents)
         const adjustments = sum(entries.filter((l) => l.type === 'adjustment'), (l) => l.effectCents)
         return {
-          seller: s, status: statusOf(s), earned, periodSales, subscriptions, paid, adjustments,
-          balance: earned + subscriptions + paid + adjustments, entries,
+          seller: s, status: statusOf(s), earned, fees, periodSales, subscriptions, paid, adjustments,
+          balance: earned - fees + subscriptions + paid + adjustments, entries,
         }
       })
       .filter((r) => r.status === 'approved' || r.earned > 0 || r.entries.length > 0)
@@ -124,9 +136,9 @@ export default function AdminReports() {
   }
 
   function exportCsv() {
-    const header = ['Supplier', 'Status', 'Sales in period', 'Sales all time', 'Subscriptions', 'Paid out', 'Adjustments', 'Balance owed']
+    const header = ['Supplier', 'Status', 'Sales in period', 'Sales all time', 'PayFast fees', 'Subscriptions', 'Paid out', 'Adjustments', 'Balance owed']
     const lines = rows.map((r) => [
-      r.seller.businessName, r.status, r.periodSales / 100, r.earned / 100,
+      r.seller.businessName, r.status, r.periodSales / 100, r.earned / 100, -r.fees / 100,
       r.subscriptions / 100, r.paid / 100, r.adjustments / 100, r.balance / 100,
     ])
     const csv = [header, ...lines]
@@ -165,6 +177,7 @@ export default function AdminReports() {
           ],
           rows: [
             { measure: 'Sales in period', amount: sum(rows, (r) => r.periodSales) },
+            { measure: 'PayFast fees deducted', amount: -sum(rows, (r) => r.fees) },
             { measure: 'Subscriptions charged', amount: -sum(rows, (r) => r.subscriptions) },
             { measure: 'Paid out', amount: -sum(rows, (r) => r.paid) },
             { measure: 'Total owed to suppliers', amount: sum(rows, (r) => r.balance) },
@@ -180,6 +193,7 @@ export default function AdminReports() {
             { header: 'Banking details', key: 'banking', width: 16 },
             { header: 'Sales in period', key: 'periodSales', type: 'cents', width: 18, total: true },
             { header: 'Sales all time', key: 'earned', type: 'cents', width: 18, total: true },
+            { header: 'PayFast fees', key: 'fees', type: 'cents', width: 18, total: true },
             { header: 'Subscriptions', key: 'subscriptions', type: 'cents', width: 18, total: true },
             { header: 'Paid out', key: 'paid', type: 'cents', width: 18, total: true },
             { header: 'Adjustments', key: 'adjustments', type: 'cents', width: 18, total: true },
@@ -191,6 +205,7 @@ export default function AdminReports() {
             banking: banks[r.seller.id] ? 'On file' : 'Missing',
             periodSales: r.periodSales,
             earned: r.earned,
+            fees: -r.fees,
             subscriptions: r.subscriptions,
             paid: r.paid,
             adjustments: r.adjustments,
@@ -221,10 +236,16 @@ export default function AdminReports() {
 
   const totals = {
     period: sum(rows, (r) => r.periodSales),
+    fees: sum(rows, (r) => r.fees),
     subs: sum(rows, (r) => r.subscriptions),
     paid: sum(rows, (r) => r.paid),
     balance: sum(rows, (r) => r.balance),
   }
+  const attention = payments.filter((p) => p.needsAttention)
+  const periodPayments = payments.filter((p) => {
+    const t = millis(p.paidAt || p.createdAt)
+    return p.status !== 'pending' && t >= startOfDay(from) && t <= endOfDay(to)
+  })
   const input = 'rounded-lg border border-gold/50 bg-white p-2 text-sm'
 
   return (
@@ -245,9 +266,10 @@ export default function AdminReports() {
 
       {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
         {[
           ['Sales in period', formatZAR(totals.period)],
+          ['PayFast fees', formatZAR(-totals.fees)],
           ['Subscriptions charged', formatZAR(-totals.subs)],
           ['Paid out', formatZAR(-totals.paid)],
           ['Total owed to suppliers', formatZAR(totals.balance)],
@@ -275,9 +297,10 @@ export default function AdminReports() {
                 <p className="text-lg font-semibold text-emerald-brand">{formatZAR(r.balance)}</p>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-5">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
                 <p>Period sales<br /><span className="text-sm">{formatZAR(r.periodSales)}</span></p>
                 <p>All sales<br /><span className="text-sm">{formatZAR(r.earned)}</span></p>
+                <p>PayFast fees<br /><span className="text-sm">{formatZAR(-r.fees)}</span></p>
                 <p>Subscriptions<br /><span className="text-sm">{formatZAR(r.subscriptions)}</span></p>
                 <p>Paid out<br /><span className="text-sm">{formatZAR(r.paid)}</span></p>
                 <p>Adjustments<br /><span className="text-sm">{formatZAR(r.adjustments)}</span></p>
@@ -320,9 +343,46 @@ export default function AdminReports() {
         })}
       </ul>
 
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-semibold text-emerald-brand">Payments</h2>
+        {attention.length > 0 && (
+          <div className="mb-4 rounded-xl border border-red-700 bg-white p-4">
+            <p className="mb-2 text-sm font-medium text-red-700">
+              Needs attention: paid, but the booking or order was cancelled or removed
+            </p>
+            <ul className="flex flex-col gap-1 text-xs">
+              {attention.map((p) => (
+                <li key={p.id}>
+                  {formatDate(p.paidAt)} · {p.sellerName} · {p.title} · {formatZAR(p.amountCents)} ·
+                  PayFast ref {p.pfPaymentId || '-'}. Refund in the PayFast dashboard, then add an Adjustment.
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {periodPayments.length === 0 && <p className="text-sm">No payments in this period.</p>}
+        <ul className="flex flex-col gap-2">
+          {periodPayments.map((p) => (
+            <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3 text-sm">
+              <div>
+                <p className="font-medium">{p.title} <span className="text-xs">({p.kind})</span></p>
+                <p className="text-xs text-gold-deep">
+                  {formatDate(p.paidAt || p.createdAt)} · {p.sellerName} · {p.status}
+                  {p.needsAttention ? ' · NEEDS ATTENTION' : ''}
+                </p>
+              </div>
+              <div className="text-right">
+                <p>{formatZAR(p.amountCents)}</p>
+                {p.feeCents > 0 && <p className="text-xs text-gold-deep">Fee {formatZAR(p.feeCents)}</p>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <p className="mt-6 text-xs">
         Sales count when the customer has paid through PayFast and the booking is completed or the
-        order is delivered. PayFast fees are not deducted from these figures.
+        order is delivered. PayFast fees are deducted from each supplier’s balance.
       </p>
     </main>
   )

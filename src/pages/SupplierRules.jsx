@@ -130,12 +130,15 @@ export default function SupplierRules() {
           </li>
           <li>Zolara takes no commission on your sales.</li>
           <li>
-            Payment processing fees charged by our payment provider (PayFast) on each sale are for the
-            supplier’s account.
+            PayFast, our payment provider, charges a processing fee on every customer payment. The
+            fee depends on how the customer pays, for example by card or Instant EFT. We deduct the
+            exact fee PayFast charged from what we pay you for that sale, and it shows on your
+            Payments page.
           </li>
           <li>
-            Zolara pays your earnings every two weeks into the bank account you give us, after any
-            amount you owe is deducted. Keep your banking details accurate.
+            Zolara pays your earnings every two weeks into the bank account you give us, after
+            PayFast fees, your subscription and any other amount you owe are deducted. Keep your
+            banking details accurate.
           </li>
         </ul>
       </Section>

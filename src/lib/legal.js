@@ -1,6 +1,6 @@
 export const OWNER = 'R&R Agencies'
 export const CONTACT_EMAIL = 'info@rragencies.co.za'
-export const LAST_UPDATED = '18 November 2026'
+export const LAST_UPDATED = '19 November 2026'
 
 export const TERMS = {
   title: 'Terms of Use',
@@ -12,7 +12,7 @@ export const TERMS = {
       paras: [
         'Zolara connects customers with independent suppliers. Suppliers are not employees, agents or partners of Zolara. The supplier, not Zolara, sells the product or provides the service and is responsible for it.',
         'Zolara is owned by R&R Agencies. R&R Site Solutions, a division of R&R Agencies, also sells on Zolara as a supplier and may be shown first. We use administrator access only to run the marketplace.',
-        'Zolara does not currently take payment. When you send a booking request or an order request, the supplier contacts you to confirm the details and arrange payment and delivery directly.',
+        'Customers pay for confirmed bookings and orders through PayFast, a third-party payment provider. Card and bank details are entered on PayFast and are not seen or stored by Zolara. Zolara receives the payment and pays the supplier the amount due, after PayFast’s processing fee and any other amount the supplier owes, as set out in the Supplier Rules.',
       ],
     },
     {
@@ -29,6 +29,8 @@ export const TERMS = {
       bullets: [
         'A booking or order is a request. It becomes confirmed only when the supplier accepts it.',
         'You may cancel a request before the supplier accepts it. After that, please contact the supplier.',
+        'After a supplier accepts your request, you can pay through Zolara using PayFast. Your booking or order shows as paid once PayFast confirms the payment.',
+        'A paid booking or order cannot be cancelled on Zolara. If something goes wrong, please contact us. Where a refund is due, we process it manually, and it can take several business days.',
         'Please give accurate contact and delivery details. The supplier will use them to reach you.',
         'After your service or order, please tell us honestly whether you were satisfied.',
       ],
@@ -41,7 +43,7 @@ export const TERMS = {
         'Zolara may approve, reject, hide or remove a supplier and their listings at any time, for example after repeated valid complaints.',
         'Your listings must be accurate, lawful and for items and services you are allowed to sell. Items that cannot be listed are set out in the Supplier Rules.',
         'You must keep your banking details accurate and up to date. Zolara may delay a payout while it confirms a change to them.',
-        'Zolara’s subscription fee, payout timing and any deductions are set out in the Supplier Rules.',
+        'Zolara’s subscription fee, PayFast’s processing fee on each sale, payout timing and any deductions are set out in the Supplier Rules. You may only mark a booking completed or an order shipped after the customer has paid.',
         'You must deliver what you confirm, handle customer details only to complete the booking or order, and not use them for anything else.',
         'You are responsible for your own taxes, licences, insurance and compliance with the law.',
         'Stock numbers and prices must be kept up to date.',
@@ -109,6 +111,7 @@ export const PRIVACY = {
         'Supplier banking details: account holder name, bank, account number, branch code and account type, used only to pay you. Only you and Zolara administrators can see these.',
         'Listings: titles, descriptions, prices, categories and photos.',
         'Bookings and orders: your name, email, phone number, delivery address or service location, the date and time, and any notes you add.',
+        'Payment records: the amount, status and PayFast reference of each payment, and the fee charged. Card and bank details are entered on PayFast and are not seen or stored by Zolara.',
         'Feedback: whether you were satisfied and any comment you leave.',
         'Basic technical data and browser storage that keeps you logged in and keeps the site working.',
       ],
@@ -132,7 +135,7 @@ export const PRIVACY = {
         'The public sees a supplier’s business name, description, city and logo, and their listings and photos.',
         'A supplier sees the name, email, phone number and address of a customer who books or orders from them. A customer sees the supplier’s business details.',
         'Zolara administrators can see accounts, applications, bookings, orders and feedback to run and protect the marketplace.',
-        'Our service providers process data for us. We use Google Firebase for login and our database, and Vercel to host the website.',
+        'Our service providers process data for us. We use Google Firebase for login and our database, Vercel to host the website, and PayFast to process payments. PayFast receives your name, email address and the payment amount.',
         'We disclose information when the law requires it.',
         'We do not sell your personal information.',
       ],

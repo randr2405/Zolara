@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  addDoc, collection, onSnapshot, query, serverTimestamp, where,
+  addDoc, collection, getDocs, onSnapshot, query, serverTimestamp, where,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -11,6 +11,8 @@ const TYPE_LABEL = {
   correction: 'Correct my data',
   deletion: 'Delete my account',
 }
+
+const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 
 function YourData({ user, profile }) {
   const [requests, setRequests] = useState([])
@@ -56,6 +58,42 @@ function YourData({ user, profile }) {
     }
   }
 
+  async function downloadPayments() {
+    setError('')
+    try {
+      const seller = profile?.role === 'seller'
+      const snap = await getDocs(
+        query(collection(db, 'payments'), where(seller ? 'sellerId' : 'buyerId', '==', user.uid))
+      )
+      const rows = snap.docs
+        .map((d) => d.data())
+        .filter((p) => p.status !== 'pending')
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      const header = [
+        'Date', 'Item', 'Type', seller ? 'Customer paid (R)' : 'Amount (R)',
+        ...(seller ? ['PayFast fee (R)'] : []), 'Status',
+      ]
+      const lines = rows.map((p) => [
+        (p.paidAt || p.createdAt)?.toDate?.().toISOString().slice(0, 10) || '',
+        p.title,
+        p.kind,
+        (p.amountCents || 0) / 100,
+        ...(seller ? [(p.feeCents || 0) / 100] : []),
+        p.status,
+      ])
+      const csv = [header, ...lines].map((l) => l.map(csvCell).join(',')).join('\n')
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'my-zolara-payments.csv'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error(err)
+      setError('Could not build your payment records.')
+    }
+  }
+
   const hasOpen = requests.some((r) => r.type === type && r.status === 'open')
 
   return (
@@ -84,6 +122,14 @@ function YourData({ user, profile }) {
           {busy ? 'Sending…' : 'Send request'}
         </button>
       </form>
+
+      <div className="mt-4 border-t border-gold/40 pt-3">
+        <p className="mb-2 text-xs">Download your payment records now, without sending a request.</p>
+        <button type="button" onClick={downloadPayments}
+          className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep">
+          Download my payment records
+        </button>
+      </div>
 
       {requests.length > 0 && (
         <ul className="mt-4 flex flex-col gap-2 border-t border-gold/40 pt-3 text-sm">
