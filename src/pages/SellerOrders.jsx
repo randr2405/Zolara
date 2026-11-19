@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
+import SellerFeedback from '../components/SellerFeedback.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
 
@@ -135,12 +136,7 @@ export default function SellerOrders() {
               )}
             </div>
 
-            {feedback[o.id] && (
-              <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
-                Customer feedback: {feedback[o.id].satisfied ? 'Satisfied' : 'Not satisfied'}
-                {feedback[o.id].comment ? ` — ${feedback[o.id].comment}` : ''}
-              </p>
-            )}
+            {feedback[o.id] && <SellerFeedback docId={o.id} data={feedback[o.id]} />}
           </li>
         ))}
       </ul>

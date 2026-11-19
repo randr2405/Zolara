@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
+import SellerFeedback from '../components/SellerFeedback.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
 
@@ -93,12 +94,7 @@ export default function SellerBookings() {
               )}
             </div>
 
-            {feedback[b.id] && (
-              <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
-                Customer feedback: {feedback[b.id].satisfied ? 'Satisfied' : 'Not satisfied'}
-                {feedback[b.id].comment ? ` — ${feedback[b.id].comment}` : ''}
-              </p>
-            )}
+            {feedback[b.id] && <SellerFeedback docId={b.id} data={feedback[b.id]} />}
           </li>
         ))}
       </ul>

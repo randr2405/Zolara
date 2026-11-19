@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, where, writeBatch,
+  collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { STRIKE_LIMIT, STRIKE_WINDOW_DAYS, strikeLabel } from '../lib/strikes.js'
 
 const statusOf = (s) => s.status || (s.verified ? 'approved' : 'pending')
 
@@ -49,7 +50,7 @@ function Row({ label, value }) {
   )
 }
 
-function SellerCard({ seller, status, complaintCount }) {
+function SellerCard({ seller, status, complaintCount, strikes }) {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -125,7 +126,7 @@ function SellerCard({ seller, status, complaintCount }) {
             {seller.city}
             {complaintCount > 0 && (
               <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-red-700">
-                {complaintCount} {complaintCount === 1 ? 'complaint' : 'complaints'}
+                {complaintCount} {complaintCount === 1 ? 'complaint' : 'complaints'}{strikes > 0 ? `, ${strikes} upheld` : ''}
               </span>
             )}
           </p>
@@ -188,36 +189,102 @@ function SellerCard({ seller, status, complaintCount }) {
   )
 }
 
-function Complaints({ complaints, sellers, counts, onOpenSupplier }) {
+function Complaints({ complaints, sellers, validCounts, onOpenSupplier }) {
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState('')
+
+  async function review(c, status) {
+    const prompt = status === 'valid'
+      ? 'Uphold this complaint. Note for the supplier (optional):'
+      : 'Dismiss this complaint. Note for the supplier (optional):'
+    const note = window.prompt(prompt)
+    if (note === null) return
+    const data = { reviewStatus: status, reviewNote: note.trim(), reviewedAt: serverTimestamp() }
+    if (status === 'valid') data.strikeNumber = (validCounts[c.sellerId] || 0) + 1
+    setBusyId(c.id)
+    setError('')
+    try {
+      await updateDoc(doc(db, 'feedback', c.id), data)
+    } catch (err) {
+      console.error(err)
+      setError('Could not save the decision. Check your rules and try again.')
+    } finally {
+      setBusyId('')
+    }
+  }
+
   if (complaints.length === 0) return <p className="text-sm">No complaints.</p>
 
   return (
-    <ul className="flex flex-col gap-3">
-      {complaints.map((c) => {
-        const seller = sellers.find((s) => s.id === c.sellerId)
-        const when = c.createdAt?.toDate?.().toLocaleDateString('en-ZA')
-        return (
-          <li key={c.id} className="rounded-xl bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{c.sellerName || seller?.businessName}</p>
-                <p className="text-sm text-gold-deep">{c.listingTitle}{when ? ` · ${when}` : ''}</p>
+    <>
+      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
+      <ul className="flex flex-col gap-3">
+        {complaints.map((c) => {
+          const seller = sellers.find((s) => s.id === c.sellerId)
+          const when = c.createdAt?.toDate?.().toLocaleDateString('en-ZA')
+          const strikes = validCounts[c.sellerId] || 0
+          const badge = c.reviewStatus === 'valid'
+            ? 'Upheld'
+            : c.reviewStatus === 'dismissed'
+            ? 'Dismissed'
+            : 'Needs review'
+          return (
+            <li key={c.id} className="rounded-xl bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{c.sellerName || seller?.businessName}</p>
+                  <p className="text-sm text-gold-deep">{c.listingTitle}{when ? ` · ${when}` : ''}</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs ${
+                  c.reviewStatus ? 'bg-cream' : 'bg-red-100 text-red-700'}`}>
+                  {badge}
+                </span>
               </div>
-              <span className="rounded-full bg-red-100 px-3 py-1 text-xs text-red-700">
-                {counts[c.sellerId]} total
-              </span>
-            </div>
-            <p className="mt-2 whitespace-pre-line text-sm">{c.comment || 'No comment left.'}</p>
-            {seller && (
-              <button onClick={() => onOpenSupplier(statusOf(seller))}
-                className="mt-3 text-sm text-emerald-brand underline">
-                Go to supplier ({statusOf(seller)})
-              </button>
-            )}
-          </li>
-        )
-      })}
-    </ul>
+
+              <p className="mt-2 whitespace-pre-line text-sm">{c.comment || 'No comment left.'}</p>
+
+              <p className="mt-2 whitespace-pre-line text-sm">
+                <span className="text-gold-deep">Supplier response: </span>
+                {c.sellerResponse || 'None yet.'}
+              </p>
+
+              {c.reviewStatus && (
+                <p className="mt-2 text-xs">
+                  {c.reviewStatus === 'valid' && c.strikeNumber ? `Strike ${c.strikeNumber}: ${strikeLabel(c.strikeNumber)}. ` : ''}
+                  {c.reviewNote ? `Note: ${c.reviewNote}` : ''}
+                </p>
+              )}
+
+              <p className="mt-2 text-xs">
+                Upheld complaints for this supplier in the last {STRIKE_WINDOW_DAYS} days: {strikes} of {STRIKE_LIMIT}
+                {strikes >= STRIKE_LIMIT ? '. Removal threshold reached.' : ''}
+              </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {!c.reviewStatus && (
+                  <>
+                    <button disabled={busyId === c.id} onClick={() => review(c, 'valid')}
+                      className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700 disabled:opacity-60">
+                      Uphold complaint
+                    </button>
+                    <button disabled={busyId === c.id} onClick={() => review(c, 'dismissed')}
+                      className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+                      Dismiss
+                    </button>
+                  </>
+                )}
+                {seller && (
+                  <button onClick={() => onOpenSupplier(statusOf(seller))}
+                    className="text-sm text-emerald-brand underline">
+                    Go to supplier ({statusOf(seller)})
+                  </button>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </>
   )
 }
 
@@ -255,7 +322,14 @@ export default function Admin() {
   if (!sellers) return <p className="p-6 text-center">Loading…</p>
 
   const counts = {}
-  complaints.forEach((c) => { counts[c.sellerId] = (counts[c.sellerId] || 0) + 1 })
+  const validCounts = {}
+  const windowStart = Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  complaints.forEach((c) => {
+    counts[c.sellerId] = (counts[c.sellerId] || 0) + 1
+    if (c.reviewStatus === 'valid' && (c.createdAt?.toMillis?.() || 0) >= windowStart) {
+      validCounts[c.sellerId] = (validCounts[c.sellerId] || 0) + 1
+    }
+  })
 
   const groups = {
     pending: sellers.filter((s) => statusOf(s) === 'pending'),
@@ -266,7 +340,7 @@ export default function Admin() {
     ['pending', 'Pending', groups.pending.length],
     ['approved', 'Approved', groups.approved.length],
     ['closed', 'Rejected / removed', groups.closed.length],
-    ['complaints', 'Complaints', complaints.length],
+    ['complaints', 'Complaints to review', complaints.filter((c) => !c.reviewStatus).length],
   ]
 
   const openSupplier = (status) => setTab(status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'closed')
@@ -292,13 +366,13 @@ export default function Admin() {
       </div>
 
       {tab === 'complaints' ? (
-        <Complaints complaints={complaints} sellers={sellers} counts={counts} onOpenSupplier={openSupplier} />
+        <Complaints complaints={complaints} sellers={sellers} validCounts={validCounts} onOpenSupplier={openSupplier} />
       ) : (
         <>
           {groups[tab].length === 0 && <p className="text-sm">Nobody here.</p>}
           <ul className="flex flex-col gap-3">
             {groups[tab].map((s) => (
-              <SellerCard key={s.id} seller={s} status={statusOf(s)} complaintCount={counts[s.id] || 0} />
+              <SellerCard key={s.id} seller={s} status={statusOf(s)} complaintCount={counts[s.id] || 0} strikes={validCounts[s.id] || 0} />
             ))}
           </ul>
         </>

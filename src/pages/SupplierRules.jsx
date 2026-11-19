@@ -1,7 +1,6 @@
+import { BAN_MONTHS, STRIKE_LIMIT, STRIKE_WINDOW_DAYS } from '../lib/strikes.js'
+
 const SHOW_DRAFT_BANNER = true
-const STRIKE_LIMIT = 3
-const STRIKE_WINDOW_DAYS = 90
-const BAN_MONTHS = 6
 const MONTHLY_FEE = 'R250'
 const FREE_MONTHS = 3
 
