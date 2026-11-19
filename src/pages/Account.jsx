@@ -1,5 +1,110 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  addDoc, collection, onSnapshot, query, serverTimestamp, where,
+} from 'firebase/firestore'
+import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
+
+const TYPE_LABEL = {
+  access: 'Copy of my data',
+  correction: 'Correct my data',
+  deletion: 'Delete my account',
+}
+
+function YourData({ user, profile }) {
+  const [requests, setRequests] = useState([])
+  const [type, setType] = useState('access')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
+
+  useEffect(
+    () =>
+      onSnapshot(query(collection(db, 'dataRequests'), where('userId', '==', user.uid)), (snap) => {
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        setRequests(items)
+      }),
+    [user.uid]
+  )
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (type === 'deletion' && !window.confirm('Request deletion of your account and personal information?')) return
+    setBusy(true)
+    setError('')
+    setSent(false)
+    try {
+      await addDoc(collection(db, 'dataRequests'), {
+        userId: user.uid,
+        userEmail: user.email,
+        userName: profile?.displayName || user.email,
+        type,
+        message: message.trim(),
+        status: 'open',
+        createdAt: serverTimestamp(),
+      })
+      setMessage('')
+      setSent(true)
+    } catch (err) {
+      console.error(err)
+      setError('Could not send your request. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const hasOpen = requests.some((r) => r.type === type && r.status === 'open')
+
+  return (
+    <section className="mt-8 rounded-xl bg-white p-4">
+      <h2 className="mb-1 text-lg font-semibold text-emerald-brand">Your data</h2>
+      <p className="mb-4 text-xs">
+        You can ask us for a copy of the personal information we hold about you, ask us to correct it,
+        or ask us to delete your account. We aim to respond within 30 days. For some requests we may
+        need to confirm it is really you. We may keep records we are legally required to keep, such as
+        bookings, orders and payments.
+      </p>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <select value={type} onChange={(e) => { setType(e.target.value); setSent(false) }}
+          className="rounded-lg border border-gold/50 bg-white p-3 text-sm">
+          {Object.entries(TYPE_LABEL).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+        </select>
+        <textarea rows={3} maxLength={1000} value={message} onChange={(e) => setMessage(e.target.value)}
+          placeholder={type === 'correction' ? 'What should be corrected?' : 'Anything we should know? (optional)'}
+          className="rounded-lg border border-gold/50 bg-white p-3 text-sm" />
+        {hasOpen && <p className="text-xs">You already have an open request of this kind.</p>}
+        {sent && <p className="text-sm text-emerald-brand">Request sent. We will be in touch.</p>}
+        {error && <p className="text-sm text-red-700">{error}</p>}
+        <button disabled={busy || hasOpen}
+          className="self-start rounded-full bg-emerald-brand px-6 py-3 text-sm text-cream disabled:opacity-60">
+          {busy ? 'Sending…' : 'Send request'}
+        </button>
+      </form>
+
+      {requests.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-2 border-t border-gold/40 pt-3 text-sm">
+          {requests.map((r) => (
+            <li key={r.id} className="flex items-center justify-between">
+              <span>
+                {TYPE_LABEL[r.type]}
+                <span className="ml-2 text-xs text-gold-deep">
+                  {r.createdAt?.toDate?.().toLocaleDateString('en-ZA')}
+                </span>
+              </span>
+              <span className="rounded-full bg-cream px-3 py-1 text-xs">
+                {r.status === 'done' ? 'Done' : 'Open'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
 
 export default function Account() {
   const { user, profile } = useAuth()
@@ -29,6 +134,8 @@ export default function Account() {
           </>
         )}
       </div>
+
+      <YourData user={user} profile={profile} />
     </main>
   )
 }

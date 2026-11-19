@@ -7,6 +7,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
+import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 
 function FeedbackForm({ booking, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -68,6 +69,7 @@ export default function MyBookings() {
   const { user } = useAuth()
   const [bookings, setBookings] = useState(null)
   const [feedback, setFeedback] = useState({})
+  const [error, setError] = useState('')
 
   useEffect(
     () =>
@@ -89,11 +91,60 @@ export default function MyBookings() {
     [user.uid]
   )
 
+  async function download() {
+    setError('')
+    try {
+      await downloadWorkbook(`zolara-my-bookings-${stampDate()}.xlsx`, [
+        {
+          name: 'My bookings',
+          title: 'Zolara · My bookings',
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}`,
+          columns: [
+            { header: 'Requested', key: 'createdAt', type: 'datetime', width: 20 },
+            { header: 'Service', key: 'service', width: 30 },
+            { header: 'Supplier', key: 'supplier', width: 26 },
+            { header: 'Booking date', key: 'date', type: 'date', width: 16 },
+            { header: 'Time', key: 'time', width: 10 },
+            { header: 'Status', key: 'status', width: 22 },
+            { header: 'Price', key: 'price', type: 'cents', width: 16 },
+            { header: 'Satisfied', key: 'satisfied', width: 12 },
+            { header: 'Your feedback', key: 'comment', width: 40 },
+          ],
+          rows: bookings.map((b) => {
+            const f = feedback[b.id]
+            return {
+              createdAt: b.createdAt,
+              service: b.listingTitle,
+              supplier: b.sellerName,
+              date: b.date ? new Date(`${b.date}T12:00:00`) : null,
+              time: b.time,
+              status: BOOKING_STATUS[b.status] || b.status,
+              price: b.priceCents,
+              satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',
+              comment: f?.comment || '',
+            }
+          }),
+        },
+      ])
+    } catch (err) {
+      console.error(err)
+      setError('Could not build the Excel file.')
+    }
+  }
+
   if (!bookings) return <p className="p-6 text-center">Loading…</p>
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-semibold text-emerald-brand">My bookings</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-emerald-brand">My bookings</h1>
+        <button onClick={download} disabled={bookings.length === 0}
+          className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+          Download Excel
+        </button>
+      </div>
+
+      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
 
       {bookings.length === 0 && (
         <p className="text-sm">

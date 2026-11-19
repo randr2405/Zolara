@@ -146,7 +146,7 @@ export const PRIVACY = {
     {
       heading: '5. How long we keep it',
       paras: [
-        'We keep your information while your account is active and for as long as we need it for bookings, orders, complaints, disputes and legal duties. After that we delete it or make it anonymous.',
+        'We keep your information while your account is active and for as long as we need it for bookings, orders, complaints, disputes and legal duties. After that we delete it or make it anonymous. We may keep some records, such as bookings, orders and payments, for as long as the law requires, even after you close your account.',
       ],
     },
     {
@@ -157,7 +157,7 @@ export const PRIVACY = {
     },
     {
       heading: '7. Your rights',
-      paras: ['Under POPIA you may:'],
+      paras: ['Under POPIA you may make the requests below. Use the “Your data” section of your Account page, or email us.'],
       bullets: [
         'ask what personal information we hold about you and ask for a copy;',
         'ask us to correct or delete information that is inaccurate, outdated or unlawfully held;',

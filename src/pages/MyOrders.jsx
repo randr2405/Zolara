@@ -7,6 +7,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
+import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 
 function FeedbackForm({ order, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -69,6 +70,7 @@ export default function MyOrders() {
   const { user } = useAuth()
   const [orders, setOrders] = useState(null)
   const [feedback, setFeedback] = useState({})
+  const [error, setError] = useState('')
 
   useEffect(
     () =>
@@ -90,11 +92,60 @@ export default function MyOrders() {
     [user.uid]
   )
 
+  async function download() {
+    setError('')
+    try {
+      await downloadWorkbook(`zolara-my-orders-${stampDate()}.xlsx`, [
+        {
+          name: 'My orders',
+          title: 'Zolara · My orders',
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}`,
+          columns: [
+            { header: 'Ordered', key: 'createdAt', type: 'datetime', width: 20 },
+            { header: 'Item', key: 'item', width: 30 },
+            { header: 'Supplier', key: 'supplier', width: 26 },
+            { header: 'Quantity', key: 'quantity', type: 'number', width: 10 },
+            { header: 'Unit price', key: 'price', type: 'cents', width: 16 },
+            { header: 'Total', key: 'total', type: 'cents', width: 16 },
+            { header: 'Status', key: 'status', width: 20 },
+            { header: 'Satisfied', key: 'satisfied', width: 12 },
+            { header: 'Your feedback', key: 'comment', width: 40 },
+          ],
+          rows: orders.map((o) => {
+            const f = feedback[o.id]
+            return {
+              createdAt: o.createdAt,
+              item: o.listingTitle,
+              supplier: o.sellerName,
+              quantity: o.quantity,
+              price: o.priceCents,
+              total: o.totalCents,
+              status: ORDER_STATUS[o.status] || o.status,
+              satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',
+              comment: f?.comment || '',
+            }
+          }),
+        },
+      ])
+    } catch (err) {
+      console.error(err)
+      setError('Could not build the Excel file.')
+    }
+  }
+
   if (!orders) return <p className="p-6 text-center">Loading…</p>
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-semibold text-emerald-brand">My orders</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-emerald-brand">My orders</h1>
+        <button onClick={download} disabled={orders.length === 0}
+          className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+          Download Excel
+        </button>
+      </div>
+
+      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
 
       {orders.length === 0 && (
         <p className="text-sm">

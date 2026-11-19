@@ -8,6 +8,9 @@ import { useAuth } from '../context/AuthContext.jsx'
 import SellerFeedback from '../components/SellerFeedback.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
+import {
+  STATUS_SUMMARY_COLUMNS, downloadWorkbook, stampDate, summaryByStatus,
+} from '../lib/reportExport.js'
 
 const setStatus = (id, status) =>
   updateDoc(doc(db, 'bookings', id), { status, updatedAt: serverTimestamp() })
@@ -48,13 +51,66 @@ export default function SellerBookings() {
     }
   }
 
+  async function download() {
+    setError('')
+    try {
+      await downloadWorkbook(`zolara-bookings-${stampDate()}.xlsx`, [
+        {
+          name: 'Bookings',
+          title: 'Zolara · Your bookings',
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}`,
+          columns: [
+            { header: 'Requested', key: 'createdAt', type: 'datetime', width: 20 },
+            { header: 'Service', key: 'service', width: 30 },
+            { header: 'Booking date', key: 'date', type: 'date', width: 16 },
+            { header: 'Time', key: 'time', width: 10 },
+            { header: 'Status', key: 'status', width: 22 },
+            { header: 'Price', key: 'price', type: 'cents', width: 16 },
+            { header: 'Customer', key: 'customer', width: 24 },
+            { header: 'Phone', key: 'phone', width: 16 },
+            { header: 'Email', key: 'email', width: 28 },
+            { header: 'Notes', key: 'notes', width: 40 },
+          ],
+          rows: bookings.map((b) => ({
+            createdAt: b.createdAt,
+            service: b.listingTitle,
+            date: b.date ? new Date(`${b.date}T12:00:00`) : null,
+            time: b.time,
+            status: BOOKING_STATUS[b.status] || b.status,
+            price: b.priceCents,
+            customer: b.buyerName,
+            phone: b.buyerPhone,
+            email: b.buyerEmail,
+            notes: b.notes,
+          })),
+        },
+        {
+          name: 'Summary',
+          title: 'Zolara · Bookings by status',
+          subtitle: 'Value is the total booking price for each status.',
+          columns: STATUS_SUMMARY_COLUMNS,
+          rows: summaryByStatus(bookings, BOOKING_STATUS, (b) => b.priceCents || 0),
+        },
+      ])
+    } catch (err) {
+      console.error(err)
+      setError('Could not build the Excel file.')
+    }
+  }
+
   if (!bookings) return <p className="p-6 text-center">Loading…</p>
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-emerald-brand">Bookings</h1>
-        <Link to="/seller" className="text-sm text-emerald-brand underline">Back to dashboard</Link>
+        <div className="flex items-center gap-4">
+          <button onClick={download} disabled={bookings.length === 0}
+            className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+            Download Excel
+          </button>
+          <Link to="/seller" className="text-sm text-emerald-brand underline">Back to dashboard</Link>
+        </div>
       </div>
 
       {error && <p className="mb-4 text-sm text-red-700">{error}</p>}

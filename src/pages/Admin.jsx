@@ -4,9 +4,14 @@ import {
   collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import DataRequests from '../components/DataRequests.jsx'
 import { STRIKE_LIMIT, STRIKE_WINDOW_DAYS, strikeLabel } from '../lib/strikes.js'
+import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 
 const statusOf = (s) => s.status || (s.verified ? 'approved' : 'pending')
+
+const reviewLabel = (c) =>
+  c.reviewStatus === 'valid' ? 'Upheld' : c.reviewStatus === 'dismissed' ? 'Dismissed' : 'Needs review'
 
 async function decide(seller, status, reason = '') {
   const approved = status === 'approved'
@@ -223,11 +228,6 @@ function Complaints({ complaints, sellers, validCounts, onOpenSupplier }) {
           const seller = sellers.find((s) => s.id === c.sellerId)
           const when = c.createdAt?.toDate?.().toLocaleDateString('en-ZA')
           const strikes = validCounts[c.sellerId] || 0
-          const badge = c.reviewStatus === 'valid'
-            ? 'Upheld'
-            : c.reviewStatus === 'dismissed'
-            ? 'Dismissed'
-            : 'Needs review'
           return (
             <li key={c.id} className="rounded-xl bg-white p-4">
               <div className="flex items-start justify-between gap-3">
@@ -237,7 +237,7 @@ function Complaints({ complaints, sellers, validCounts, onOpenSupplier }) {
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs ${
                   c.reviewStatus ? 'bg-cream' : 'bg-red-100 text-red-700'}`}>
-                  {badge}
+                  {reviewLabel(c)}
                 </span>
               </div>
 
@@ -291,8 +291,10 @@ function Complaints({ complaints, sellers, validCounts, onOpenSupplier }) {
 export default function Admin() {
   const [sellers, setSellers] = useState(null)
   const [complaints, setComplaints] = useState([])
+  const [requests, setRequests] = useState([])
   const [tab, setTab] = useState('pending')
   const [error, setError] = useState('')
+  const [exportError, setExportError] = useState('')
 
   useEffect(
     () =>
@@ -312,6 +314,20 @@ export default function Admin() {
           const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
           items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
           setComplaints(items)
+        },
+        (err) => console.error(err)
+      ),
+    []
+  )
+
+  useEffect(
+    () =>
+      onSnapshot(
+        collection(db, 'dataRequests'),
+        (snap) => {
+          const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+          setRequests(items)
         },
         (err) => console.error(err)
       ),
@@ -341,9 +357,76 @@ export default function Admin() {
     ['approved', 'Approved', groups.approved.length],
     ['closed', 'Rejected / removed', groups.closed.length],
     ['complaints', 'Complaints to review', complaints.filter((c) => !c.reviewStatus).length],
+    ['requests', 'Data requests', requests.filter((r) => r.status === 'open').length],
   ]
 
   const openSupplier = (status) => setTab(status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'closed')
+
+  async function exportExcel() {
+    setExportError('')
+    const supplierRows = [...sellers]
+      .sort((a, b) => (a.businessName || '').localeCompare(b.businessName || ''))
+      .map((s) => ({
+        supplier: s.businessName,
+        city: s.city,
+        status: statusOf(s),
+        preferred: Boolean(s.preferred),
+        complaints: counts[s.id] || 0,
+        upheld: validCounts[s.id] || 0,
+        agreed: s.acceptedRulesAt,
+      }))
+    const complaintRows = complaints.map((c) => {
+      const seller = sellers.find((s) => s.id === c.sellerId)
+      return {
+        date: c.createdAt,
+        supplier: c.sellerName || seller?.businessName,
+        service: c.listingTitle,
+        comment: c.comment || '',
+        response: c.sellerResponse || '',
+        decision: reviewLabel(c),
+        strike: c.strikeNumber,
+        note: c.reviewNote || '',
+      }
+    })
+    try {
+      await downloadWorkbook(`zolara-suppliers-${stampDate()}.xlsx`, [
+        {
+          name: 'Suppliers',
+          title: 'Zolara · Suppliers',
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}. Upheld counts cover the last ${STRIKE_WINDOW_DAYS} days.`,
+          columns: [
+            { header: 'Supplier', key: 'supplier', width: 32 },
+            { header: 'City', key: 'city', width: 18 },
+            { header: 'Status', key: 'status', width: 14 },
+            { header: 'Preferred', key: 'preferred', width: 12 },
+            { header: 'Complaints', key: 'complaints', type: 'number', width: 14, total: true },
+            { header: 'Upheld', key: 'upheld', type: 'number', width: 12, total: true },
+            { header: 'Agreed to rules', key: 'agreed', type: 'date', width: 18 },
+          ],
+          rows: supplierRows,
+        },
+        {
+          name: 'Complaints',
+          title: 'Zolara · Complaints',
+          subtitle: 'Every “not satisfied” feedback, newest first.',
+          columns: [
+            { header: 'Date', key: 'date', type: 'datetime', width: 20 },
+            { header: 'Supplier', key: 'supplier', width: 28 },
+            { header: 'Service', key: 'service', width: 28 },
+            { header: 'Customer comment', key: 'comment', width: 44 },
+            { header: 'Supplier response', key: 'response', width: 44 },
+            { header: 'Decision', key: 'decision', width: 16 },
+            { header: 'Strike', key: 'strike', type: 'number', width: 10 },
+            { header: 'Admin note', key: 'note', width: 36 },
+          ],
+          rows: complaintRows,
+        },
+      ])
+    } catch (err) {
+      console.error(err)
+      setExportError('Could not build the Excel file.')
+    }
+  }
 
   return (
     <main className="mx-auto max-w-3xl p-6">
@@ -351,9 +434,14 @@ export default function Admin() {
       <p className="mb-6 text-sm">
         Approving a supplier makes their listings visible to customers. Rejecting or removing hides them.
       </p>
-      <p className="mb-6 text-sm">
+      <div className="mb-6 flex flex-wrap items-center gap-4 text-sm">
         <Link to="/admin/reports" className="text-emerald-brand underline">Payments and reports</Link>
-      </p>
+        <button onClick={exportExcel}
+          className="rounded-full border border-gold-deep px-4 py-2 text-gold-deep">
+          Download suppliers and complaints (Excel)
+        </button>
+      </div>
+      {exportError && <p className="mb-4 text-sm text-red-700">{exportError}</p>}
 
       <div className="mb-6 flex flex-wrap gap-3">
         {tabs.map(([v, label, n]) => (
@@ -365,7 +453,9 @@ export default function Admin() {
         ))}
       </div>
 
-      {tab === 'complaints' ? (
+      {tab === 'requests' ? (
+        <DataRequests requests={requests} />
+      ) : tab === 'complaints' ? (
         <Complaints complaints={complaints} sellers={sellers} validCounts={validCounts} onOpenSupplier={openSupplier} />
       ) : (
         <>

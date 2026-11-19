@@ -7,6 +7,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { LEDGER_LABEL, formatDate, millis, sum } from '../lib/finance.js'
+import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
 
@@ -128,6 +129,7 @@ export default function SellerPayments() {
   const [orders, setOrders] = useState([])
   const [bookings, setBookings] = useState([])
   const [ledger, setLedger] = useState([])
+  const [error, setError] = useState('')
 
   useEffect(
     () =>
@@ -156,8 +158,8 @@ export default function SellerPayments() {
   )
 
   const sales = [
-    ...orders.map((o) => ({ id: o.id, title: o.listingTitle, cents: o.totalCents, at: o.updatedAt || o.createdAt })),
-    ...bookings.map((b) => ({ id: b.id, title: b.listingTitle, cents: b.priceCents, at: b.updatedAt || b.createdAt })),
+    ...orders.map((o) => ({ id: o.id, title: o.listingTitle, kind: 'Order', cents: o.totalCents, at: o.updatedAt || o.createdAt })),
+    ...bookings.map((b) => ({ id: b.id, title: b.listingTitle, kind: 'Booking', cents: b.priceCents, at: b.updatedAt || b.createdAt })),
   ].sort((a, b) => millis(b.at) - millis(a.at))
 
   const earned = sum(sales, (s) => s.cents || 0)
@@ -166,12 +168,76 @@ export default function SellerPayments() {
   const adjustments = sum(ledger.filter((l) => l.type === 'adjustment'), (l) => l.effectCents)
   const balance = earned + subscriptions + paid + adjustments
 
+  async function download() {
+    setError('')
+    try {
+      await downloadWorkbook(`zolara-statement-${stampDate()}.xlsx`, [
+        {
+          name: 'Summary',
+          title: 'Zolara · Supplier statement',
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}. A sale counts once a booking is completed or an order is delivered.`,
+          columns: [
+            { header: 'Measure', key: 'measure', width: 30 },
+            { header: 'Amount', key: 'amount', type: 'cents', width: 22 },
+          ],
+          rows: [
+            { measure: 'Sales completed', amount: earned },
+            { measure: 'Subscription', amount: subscriptions },
+            { measure: 'Paid to you', amount: paid },
+            { measure: 'Adjustments', amount: adjustments },
+            { measure: 'Balance owed to you', amount: balance },
+          ],
+        },
+        {
+          name: 'Statement',
+          title: 'Zolara · Payouts and charges',
+          subtitle: 'Negative amounts reduce your balance.',
+          columns: [
+            { header: 'Date', key: 'date', type: 'datetime', width: 20 },
+            { header: 'Type', key: 'type', width: 20 },
+            { header: 'Amount', key: 'amount', type: 'cents', width: 18, total: true },
+            { header: 'Note', key: 'note', width: 44 },
+          ],
+          rows: ledger.map((l) => ({
+            date: l.createdAt,
+            type: LEDGER_LABEL[l.type] || l.type,
+            amount: l.effectCents,
+            note: l.note || '',
+          })),
+        },
+        {
+          name: 'Completed sales',
+          title: 'Zolara · Completed sales',
+          subtitle: 'Bookings marked completed and orders marked delivered.',
+          columns: [
+            { header: 'Date', key: 'date', type: 'datetime', width: 20 },
+            { header: 'Item', key: 'item', width: 34 },
+            { header: 'Type', key: 'kind', width: 14 },
+            { header: 'Amount', key: 'amount', type: 'cents', width: 18, total: true },
+          ],
+          rows: sales.map((s) => ({ date: s.at, item: s.title, kind: s.kind, amount: s.cents })),
+        },
+      ])
+    } catch (err) {
+      console.error(err)
+      setError('Could not build the Excel file.')
+    }
+  }
+
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-emerald-brand">Payments</h1>
-        <Link to="/seller" className="text-sm text-emerald-brand underline">Back to dashboard</Link>
+        <div className="flex items-center gap-4">
+          <button onClick={download}
+            className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep">
+            Download statement (Excel)
+          </button>
+          <Link to="/seller" className="text-sm text-emerald-brand underline">Back to dashboard</Link>
+        </div>
       </div>
+
+      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[

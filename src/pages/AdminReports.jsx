@@ -7,8 +7,15 @@ import { formatZAR } from '../lib/constants.js'
 import {
   SUBSCRIPTION_CENTS, endOfDay, fortnightFor, formatDate, millis, startOfDay, sum, toInputDate,
 } from '../lib/finance.js'
+import { downloadWorkbook } from '../lib/reportExport.js'
 
 const statusOf = (s) => s.status || (s.verified ? 'approved' : 'pending')
+
+const ENTRY_LABEL = {
+  subscription: 'Subscription',
+  payout: 'Payout',
+  adjustment: 'Adjustment',
+}
 
 export default function AdminReports() {
   const { user } = useAuth()
@@ -131,6 +138,83 @@ export default function AdminReports() {
     URL.revokeObjectURL(url)
   }
 
+  async function exportExcel() {
+    setError('')
+    const period = `Period ${from} to ${to}. Sales count when a booking is completed or an order is delivered.`
+    const entries = rows
+      .flatMap((r) => r.entries)
+      .sort((a, b) => millis(b.createdAt) - millis(a.createdAt))
+      .map((l) => ({
+        date: l.createdAt,
+        supplier: l.sellerName,
+        type: ENTRY_LABEL[l.type] || l.type,
+        amount: l.effectCents,
+        note: l.note || '',
+      }))
+    try {
+      await downloadWorkbook(`zolara-report-${from}-to-${to}.xlsx`, [
+        {
+          name: 'Summary',
+          title: 'Zolara · Supplier payments summary',
+          subtitle: period,
+          columns: [
+            { header: 'Measure', key: 'measure', width: 32 },
+            { header: 'Amount', key: 'amount', type: 'cents', width: 22 },
+          ],
+          rows: [
+            { measure: 'Sales in period', amount: sum(rows, (r) => r.periodSales) },
+            { measure: 'Subscriptions charged', amount: -sum(rows, (r) => r.subscriptions) },
+            { measure: 'Paid out', amount: -sum(rows, (r) => r.paid) },
+            { measure: 'Total owed to suppliers', amount: sum(rows, (r) => r.balance) },
+          ],
+        },
+        {
+          name: 'Suppliers',
+          title: 'Zolara · Supplier balances',
+          subtitle: period,
+          columns: [
+            { header: 'Supplier', key: 'supplier', width: 32 },
+            { header: 'Status', key: 'status', width: 14 },
+            { header: 'Banking details', key: 'banking', width: 16 },
+            { header: 'Sales in period', key: 'periodSales', type: 'cents', width: 18, total: true },
+            { header: 'Sales all time', key: 'earned', type: 'cents', width: 18, total: true },
+            { header: 'Subscriptions', key: 'subscriptions', type: 'cents', width: 18, total: true },
+            { header: 'Paid out', key: 'paid', type: 'cents', width: 18, total: true },
+            { header: 'Adjustments', key: 'adjustments', type: 'cents', width: 18, total: true },
+            { header: 'Balance owed', key: 'balance', type: 'cents', width: 18, total: true },
+          ],
+          rows: rows.map((r) => ({
+            supplier: r.seller.businessName,
+            status: r.status,
+            banking: banks[r.seller.id] ? 'On file' : 'Missing',
+            periodSales: r.periodSales,
+            earned: r.earned,
+            subscriptions: r.subscriptions,
+            paid: r.paid,
+            adjustments: r.adjustments,
+            balance: r.balance,
+          })),
+        },
+        {
+          name: 'Ledger',
+          title: 'Zolara · Ledger entries',
+          subtitle: 'Subscriptions, payouts and adjustments for the suppliers listed. Negative amounts reduce what is owed.',
+          columns: [
+            { header: 'Date', key: 'date', type: 'datetime', width: 20 },
+            { header: 'Supplier', key: 'supplier', width: 32 },
+            { header: 'Type', key: 'type', width: 16 },
+            { header: 'Amount', key: 'amount', type: 'cents', width: 18 },
+            { header: 'Note', key: 'note', width: 44 },
+          ],
+          rows: entries,
+        },
+      ])
+    } catch (err) {
+      console.error(err)
+      setError('Could not build the Excel file.')
+    }
+  }
+
   if (!sellers) return <p className="p-6 text-center">{error || 'Loading…'}</p>
 
   const totals = {
@@ -153,7 +237,8 @@ export default function AdminReports() {
         <label className="text-xs">To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`${input} mt-1 block`} /></label>
         <button onClick={() => { setFrom(toInputDate(initial.start)); setTo(toInputDate(initial.end)) }}
           className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep">Current fortnight</button>
-        <button onClick={exportCsv} className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Export CSV</button>
+        <button onClick={exportExcel} className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Export Excel</button>
+        <button onClick={exportCsv} className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep">Export CSV</button>
       </div>
 
       {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
