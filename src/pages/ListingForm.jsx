@@ -6,9 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { resizeImage } from '../lib/images'
-import {
-  mainCategories, subCategories, categoryNote, RESTRICTED_NOTE,
-} from '../lib/constants.js'
+import { mainCategories, subCategories, categoryNote } from '../lib/constants.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
@@ -24,7 +22,7 @@ export default function ListingForm() {
     type: 'product', title: '', description: '', category: '', subcategory: '',
     price: '', stock: '1', duration: '60',
   })
-  const [existing, setExisting] = useState([]) // [{ id, data }]
+  const [existing, setExisting] = useState([])
   const [removed, setRemoved] = useState([])
   const [files, setFiles] = useState([])
   const [busy, setBusy] = useState(false)
@@ -97,6 +95,7 @@ export default function ListingForm() {
           ...data,
           active: true,
           sellerApproved: seller.status === 'approved',
+          sellerPreferred: seller.preferred === true,
           createdAt: serverTimestamp(),
         })
         listingId = ref.id
@@ -123,10 +122,9 @@ export default function ListingForm() {
 
   return (
     <main className="mx-auto max-w-xl p-6">
-      <h1 className="mb-2 text-2xl font-semibold text-emerald-brand">
+      <h1 className="mb-6 text-2xl font-semibold text-emerald-brand">
         {id ? 'Edit listing' : 'Add a listing'}
       </h1>
-      <p className="mb-6 text-xs text-gold-deep">{RESTRICTED_NOTE}</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           {['product', 'service'].map((t) => (

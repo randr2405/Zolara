@@ -1,13 +1,9 @@
-import { RESTRICTED_NOTE } from '../lib/constants.js'
-
-// ---- Edit these before launch ----
-const SHOW_DRAFT_BANNER = true // set to false once a lawyer has reviewed the wording
-const STRIKE_LIMIT = 3         // complaints before removal (placeholder, confirm)
-const STRIKE_WINDOW_DAYS = 90  // within this many days (placeholder, confirm)
-const BAN_MONTHS = 6           // months before a removed supplier may reapply (placeholder, confirm)
+const SHOW_DRAFT_BANNER = true
+const STRIKE_LIMIT = 3
+const STRIKE_WINDOW_DAYS = 90
+const BAN_MONTHS = 6
 const MONTHLY_FEE = 'R250'
 const FREE_MONTHS = 3
-// ----------------------------------
 
 function Section({ title, children }) {
   return (
@@ -56,13 +52,22 @@ export default function SupplierRules() {
         <p>Approval is at our discretion.</p>
       </Section>
 
-      <Section title="What we do not list">
-        <p>{RESTRICTED_NOTE}</p>
+      <Section title="What cannot be listed">
         <p>
-          Clothing is limited to resold designer labels and second-hand or vintage designer pieces.
-          Your own clothing brand or label cannot be listed. Listings that do not follow these rules
-          will be removed.
+          Zolara welcomes suppliers in every category we offer, including businesses that compete with
+          each other. The following cannot be listed:
         </p>
+        <ul className="ml-5 list-disc">
+          <li>Anything illegal, stolen or counterfeit.</li>
+          <li>Weapons, ammunition and other dangerous goods.</li>
+          <li>
+            Regulated items such as alcohol, medicines and tobacco, unless you hold every licence the
+            law requires and have shown it to us.
+          </li>
+          <li>Adult content and services.</li>
+          <li>Misleading listings, including photos or claims that are not yours or not true.</li>
+        </ul>
+        <p>Listings that do not follow these rules will be removed.</p>
       </Section>
 
       <Section title="Quality standards">
@@ -98,6 +103,16 @@ export default function SupplierRules() {
         <p>Serious misconduct, such as fraud, can lead to immediate removal.</p>
       </Section>
 
+      <Section title="Fair play">
+        <p>
+          Zolara is owned by R&R Agencies. R&R Site Solutions, a division of R&R Agencies, also sells
+          on Zolara as its founding supplier and a preferred supplier, and its listings may be shown
+          first and marked as such. It competes with other suppliers on the same terms as everyone
+          else. Zolara uses administrator access to bookings, orders and supplier details only to run
+          the marketplace, and not for the benefit of any supplier.
+        </p>
+      </Section>
+
       <Section title="Zolara’s role">
         <p>
           Zolara is a marketplace that connects customers with independent suppliers. Suppliers,
@@ -118,6 +133,10 @@ export default function SupplierRules() {
           <li>
             Payment processing fees charged by our payment provider (PayFast) on each sale are for the
             supplier’s account.
+          </li>
+          <li>
+            Zolara pays your earnings every two weeks into the bank account you give us, after any
+            amount you owe is deducted. Keep your banking details accurate.
           </li>
         </ul>
       </Section>

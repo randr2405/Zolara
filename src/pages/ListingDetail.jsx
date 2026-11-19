@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
-import { formatZAR } from '../lib/constants.js'
+import { formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -56,6 +56,11 @@ export default function ListingDetail() {
         <h1 className="mb-2 text-3xl font-semibold text-emerald-brand">{listing.title}</h1>
         <p className="mb-4 text-2xl">{formatZAR(listing.priceCents)}</p>
         <p className="mb-4 whitespace-pre-line">{listing.description}</p>
+        {listing.sellerPreferred && (
+          <p className="mb-2 inline-block rounded-full bg-white px-3 py-1 text-xs text-gold-deep">
+            {PREFERRED_LABEL}
+          </p>
+        )}
         <p className="mb-6 text-sm">
           {isService ? `${listing.durationMinutes} minutes` : `${listing.stock} in stock`} ·
           Sold by {listing.sellerName}, {listing.city}

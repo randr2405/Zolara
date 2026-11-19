@@ -11,6 +11,7 @@ export const TERMS = {
       heading: '1. What Zolara is',
       paras: [
         'Zolara connects customers with independent suppliers. Suppliers are not employees, agents or partners of Zolara. The supplier, not Zolara, sells the product or provides the service and is responsible for it.',
+        'Zolara is owned by R&R Agencies. R&R Site Solutions, a division of R&R Agencies, also sells on Zolara as a supplier and may be shown first. We use administrator access only to run the marketplace.',
         'Zolara does not currently take payment. When you send a booking request or an order request, the supplier contacts you to confirm the details and arrange payment and delivery directly.',
       ],
     },
@@ -38,7 +39,7 @@ export const TERMS = {
       bullets: [
         'Your application must be truthful, including your references, examples of work and any registration number.',
         'Zolara may approve, reject, hide or remove a supplier and their listings at any time, for example after repeated valid complaints.',
-        'Your listings must be accurate, lawful and for items and services you are allowed to sell. Restricted and prohibited items are listed in the Supplier Rules and in the notice on the listing form.',
+        'Your listings must be accurate, lawful and for items and services you are allowed to sell. Items that cannot be listed are set out in the Supplier Rules.',
         'You must keep your banking details accurate and up to date. Zolara may delay a payout while it confirms a change to them.',
         'Zolara’s subscription fee, payout timing and any deductions are set out in the Supplier Rules.',
         'You must deliver what you confirm, handle customer details only to complete the booking or order, and not use them for anything else.',

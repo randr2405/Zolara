@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { mainCategories, subCategories, formatZAR } from '../lib/constants.js'
+import { mainCategories, subCategories, formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
 
 export default function Shop() {
   const [listings, setListings] = useState([])
@@ -22,7 +22,11 @@ export default function Shop() {
     )
       .then((snap) => {
         const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        items.sort(
+          (a, b) =>
+            (b.sellerPreferred ? 1 : 0) - (a.sellerPreferred ? 1 : 0) ||
+            (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+        )
         setListings(items)
       })
       .finally(() => setLoading(false))
@@ -76,6 +80,11 @@ export default function Shop() {
               ? <img src={l.thumb} alt={l.title} className="aspect-square w-full object-cover" />
               : <div className="aspect-square w-full bg-cream" />}
             <div className="p-3">
+              {l.sellerPreferred && (
+                <p className="mb-1 inline-block rounded-full bg-cream px-2 py-0.5 text-xs text-gold-deep">
+                  {PREFERRED_LABEL}
+                </p>
+              )}
               <p className="truncate font-medium">{l.title}</p>
               <p className="text-sm text-gold-deep">{formatZAR(l.priceCents)}</p>
               <p className="truncate text-xs">{l.sellerName} · {l.city}</p>

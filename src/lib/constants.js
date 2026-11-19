@@ -1,5 +1,3 @@
-// Main categories with sub-categories. Each sub-category is tagged product or service,
-// so one main category (e.g. Automotive) can hold both.
 export const CATALOG = [
   {
     name: 'Automotive',
@@ -14,12 +12,29 @@ export const CATALOG = [
     ],
   },
   {
-    name: 'Clothing',
-    note: 'Only resold designer labels, or second-hand and vintage designer pieces. Your own clothing brand or label cannot be listed on Zolara.',
+    name: 'Beauty & Hair',
     subs: [
+      { name: 'Skincare', type: 'product' },
+      { name: 'Hair products', type: 'product' },
+      { name: 'Makeup & cosmetics', type: 'product' },
+      { name: 'Fragrances', type: 'product' },
+      { name: 'Nails', type: 'service' },
+      { name: 'Hair styling', type: 'service' },
+      { name: 'Barber', type: 'service' },
+      { name: 'Makeup artist', type: 'service' },
+      { name: 'Lashes & brows', type: 'service' },
+      { name: 'Massage & spa', type: 'service' },
+    ],
+  },
+  {
+    name: 'Clothing',
+    subs: [
+      { name: 'Clothing brands & labels', type: 'product' },
       { name: 'Designer clothing', type: 'product' },
       { name: 'Second-hand designer', type: 'product' },
       { name: 'Vintage designer', type: 'product' },
+      { name: 'Uniforms & workwear', type: 'product' },
+      { name: 'Tailoring & alterations', type: 'service' },
     ],
   },
   {
@@ -54,8 +69,32 @@ export const CATALOG = [
     subs: [
       { name: 'Phones & accessories', type: 'product' },
       { name: 'Audio & TV', type: 'product' },
+      { name: 'Computers & laptops', type: 'product' },
       { name: 'Appliances', type: 'product' },
       { name: 'Appliance repairs', type: 'service' },
+    ],
+  },
+  {
+    name: 'IT & Digital Services',
+    subs: [
+      { name: 'Website design & development', type: 'service' },
+      { name: 'App development', type: 'service' },
+      { name: 'Hosting & domains', type: 'service' },
+      { name: 'Integrations & systems', type: 'service' },
+      { name: 'IT support & maintenance', type: 'service' },
+      { name: 'Networking & CCTV', type: 'service' },
+      { name: 'Digital marketing', type: 'service' },
+    ],
+  },
+  {
+    name: 'Printing, Embroidery & Branding',
+    subs: [
+      { name: 'Promotional products', type: 'product' },
+      { name: 'Printing', type: 'service' },
+      { name: 'Embroidery', type: 'service' },
+      { name: 'Custom clothing & merchandise', type: 'service' },
+      { name: 'Signage & large format', type: 'service' },
+      { name: 'Logo & brand design', type: 'service' },
     ],
   },
   {
@@ -108,11 +147,8 @@ export const CATALOG = [
   },
 ]
 
-// Shown to sellers when listing. Enforced properly at onboarding and review.
-export const RESTRICTED_NOTE =
-  'Zolara does not list printing, embroidery, clothing brands, nails and beauty, or IT services.'
+export const PREFERRED_LABEL = 'Founder & preferred supplier'
 
-// type = 'product' | 'service' | 'all'
 export const mainCategories = (type) =>
   CATALOG.filter((c) => type === 'all' || c.subs.some((s) => s.type === type)).map((c) => c.name)
 

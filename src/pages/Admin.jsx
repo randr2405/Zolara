@@ -26,6 +26,19 @@ async function decide(seller, status, reason = '') {
   }
 }
 
+async function setPreferred(seller, value) {
+  const head = writeBatch(db)
+  head.update(doc(db, 'sellers', seller.id), { preferred: value })
+  await head.commit()
+
+  const listings = await getDocs(query(collection(db, 'listings'), where('sellerId', '==', seller.id)))
+  for (let i = 0; i < listings.docs.length; i += 10) {
+    const batch = writeBatch(db)
+    listings.docs.slice(i, i + 10).forEach((l) => batch.update(l.ref, { sellerPreferred: value }))
+    await batch.commit()
+  }
+}
+
 function Row({ label, value }) {
   if (!value) return null
   return (
@@ -78,6 +91,21 @@ function SellerCard({ seller, status, complaintCount }) {
     }
   }
 
+  async function togglePreferred() {
+    const next = !seller.preferred
+    if (!window.confirm(`${next ? 'Make' : 'Stop making'} ${seller.businessName} a founder and preferred supplier?`)) return
+    setBusy(true)
+    setError('')
+    try {
+      await setPreferred(seller, next)
+    } catch (err) {
+      console.error(err)
+      setError('Something went wrong. Check the console and your rules, then try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const when = seller.acceptedRulesAt?.toDate?.().toLocaleDateString('en-ZA')
 
   return (
@@ -87,7 +115,12 @@ function SellerCard({ seller, status, complaintCount }) {
           ? <img src={seller.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
           : <div className="h-12 w-12 rounded-full bg-cream" />}
         <div className="flex-1">
-          <p className="font-medium">{seller.businessName}</p>
+          <p className="font-medium">
+            {seller.businessName}
+            {seller.preferred && (
+              <span className="ml-2 rounded-full bg-cream px-2 py-0.5 text-xs text-gold-deep">Preferred</span>
+            )}
+          </p>
           <p className="text-xs">
             {seller.city}
             {complaintCount > 0 && (
@@ -133,10 +166,16 @@ function SellerCard({ seller, status, complaintCount }) {
           </>
         )}
         {status === 'approved' && (
-          <button disabled={busy} onClick={() => act('removed', 'Remove', true)}
-            className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700 disabled:opacity-60">
-            Remove supplier
-          </button>
+          <>
+            <button disabled={busy} onClick={togglePreferred}
+              className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+              {seller.preferred ? 'Remove preferred' : 'Make preferred'}
+            </button>
+            <button disabled={busy} onClick={() => act('removed', 'Remove', true)}
+              className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700 disabled:opacity-60">
+              Remove supplier
+            </button>
+          </>
         )}
         {(status === 'rejected' || status === 'removed') && (
           <button disabled={busy} onClick={() => act('approved', 'Reinstate', false)}
