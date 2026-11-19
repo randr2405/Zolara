@@ -75,21 +75,25 @@ export default function Shop() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {shown.map((l) => (
-          <Link key={l.id} to={`/listing/${l.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            {l.thumb
-              ? <img src={l.thumb} alt={l.title} className="aspect-square w-full object-cover" />
-              : <div className="aspect-square w-full bg-cream" />}
+          <div key={l.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
+            <Link to={`/listing/${l.id}`}>
+              {l.thumb
+                ? <img src={l.thumb} alt={l.title} className="aspect-square w-full object-cover" />
+                : <div className="aspect-square w-full bg-cream" />}
+            </Link>
             <div className="p-3">
               {l.sellerPreferred && (
                 <p className="mb-1 inline-block rounded-full bg-cream px-2 py-0.5 text-xs text-gold-deep">
                   {PREFERRED_LABEL}
                 </p>
               )}
-              <p className="truncate font-medium">{l.title}</p>
+              <Link to={`/listing/${l.id}`} className="block truncate font-medium">{l.title}</Link>
               <p className="text-sm text-gold-deep">{formatZAR(l.priceCents)}</p>
-              <p className="truncate text-xs">{l.sellerName} · {l.city}</p>
+              <p className="truncate text-xs">
+                <Link to={`/supplier/${l.sellerId}`} className="underline">{l.sellerName}</Link> · {l.city}
+              </p>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </main>

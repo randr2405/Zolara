@@ -12,6 +12,7 @@ import Signup from './pages/Signup.jsx'
 import Account from './pages/Account.jsx'
 import Shop from './pages/Shop.jsx'
 import ListingDetail from './pages/ListingDetail.jsx'
+import Supplier from './pages/Supplier.jsx'
 import SellerDashboard from './pages/SellerDashboard.jsx'
 import ListingForm from './pages/ListingForm.jsx'
 import SupplierRules from './pages/SupplierRules.jsx'
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/shop" element={<Shop />} />
+            <Route path="/supplier/:id" element={<Supplier />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/listing/:id/book" element={<ProtectedRoute><BookingForm /></ProtectedRoute>} />
             <Route path="/listing/:id/buy" element={<ProtectedRoute><OrderForm /></ProtectedRoute>} />

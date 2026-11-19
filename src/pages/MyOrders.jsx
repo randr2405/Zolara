@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  collection, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
+  collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -22,7 +22,8 @@ function FeedbackForm({ order, user }) {
     setBusy(true)
     setError('')
     try {
-      await setDoc(doc(db, 'feedback', order.id), {
+      const batch = writeBatch(db)
+      batch.set(doc(db, 'feedback', order.id), {
         kind: 'order',
         orderId: order.id,
         buyerId: user.uid,
@@ -33,6 +34,14 @@ function FeedbackForm({ order, user }) {
         comment: comment.trim(),
         createdAt: serverTimestamp(),
       })
+      batch.set(doc(db, 'reviews', order.id), {
+        sellerId: order.sellerId,
+        satisfied,
+        listingTitle: order.listingTitle,
+        kind: 'order',
+        createdAt: serverTimestamp(),
+      })
+      await batch.commit()
     } catch (err) {
       console.error(err)
       setError('Could not send your feedback. Please try again.')

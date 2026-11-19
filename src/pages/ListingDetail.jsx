@@ -63,7 +63,11 @@ export default function ListingDetail() {
         )}
         <p className="mb-6 text-sm">
           {isService ? `${listing.durationMinutes} minutes` : `${listing.stock} in stock`} ·
-          Sold by {listing.sellerName}, {listing.city}
+          Sold by{' '}
+          <Link to={`/supplier/${listing.sellerId}`} className="text-emerald-brand underline">
+            {listing.sellerName}
+          </Link>
+          , {listing.city}
         </p>
         {isService ? (
           isOwner ? (
