@@ -33,7 +33,7 @@ export default function Shop() {
   const [province, setProvince] = useState('')
   const [city, setCity] = useState('')
   const [minPrice, setMinPrice] = useState('')
-  const [maxPrice, setMaxPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState(params.get('max') || '')
   const [sort, setSort] = useState('featured')
 
   useEffect(() => {
@@ -41,6 +41,7 @@ export default function Shop() {
     setCategory(params.get('category') || '')
     setSubcategory(params.get('subcategory') || '')
     setSearch(params.get('q') || '')
+    setMaxPrice(params.get('max') || '')
   }, [params])
 
   useEffect(() => {

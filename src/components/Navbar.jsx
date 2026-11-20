@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import useIsAdmin from '../lib/useIsAdmin.js'
@@ -7,6 +7,7 @@ import logo from '../assets/zolara-logo.png'
 
 const item = 'block rounded px-3 py-2 text-sm hover:bg-cream'
 const navLink = 'whitespace-nowrap text-sm font-medium text-emerald-brand hover:text-gold-deep'
+const enc = encodeURIComponent
 
 function Heart() {
   return (
@@ -31,10 +32,28 @@ export default function Navbar() {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('')
+  const [focus, setFocus] = useState(false)
   const dept = useRef(null)
   const acct = useRef(null)
   const isSeller = profile?.role === 'seller'
   const firstName = (profile?.displayName || 'Account').split(' ')[0]
+
+  const suggestions = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    if (term.length < 2) return []
+    const out = []
+    CATALOG.forEach((c) => {
+      if (c.name.toLowerCase().includes(term)) {
+        out.push({ label: c.name, hint: 'Department', to: `/shop?category=${enc(c.name)}` })
+      }
+      c.subs.forEach((s) => {
+        if (s.name.toLowerCase().includes(term)) {
+          out.push({ label: s.name, hint: c.name, to: `/shop?category=${enc(c.name)}&subcategory=${enc(s.name)}` })
+        }
+      })
+    })
+    return out.slice(0, 6)
+  }, [q])
 
   const closeAll = () => {
     if (dept.current) dept.current.open = false
@@ -47,6 +66,7 @@ export default function Navbar() {
     if (cat) p.set('category', cat)
     if (q.trim()) p.set('q', q.trim())
     const s = p.toString()
+    setFocus(false)
     navigate(s ? `/shop?${s}` : '/shop')
   }
 
@@ -65,17 +85,40 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
         <Link to="/" className="shrink-0"><img src={logo} alt="Zolara" className="h-11" /></Link>
 
-        <form onSubmit={search} role="search"
-          className="order-last flex w-full overflow-hidden rounded-full border-2 border-emerald-brand bg-white md:order-none md:w-auto md:flex-1">
-          <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Department"
-            className="hidden max-w-44 border-r border-gold/60 bg-cream px-3 text-sm outline-none sm:block">
-            <option value="">All departments</option>
-            {mainCategories('all').map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products and services"
-            aria-label="Search products and services" className="min-w-0 flex-1 px-4 py-2.5 text-sm outline-none" />
-          <button aria-label="Search" className="bg-emerald-brand px-5 text-cream"><Glass /></button>
-        </form>
+        <div className="relative order-last w-full md:order-none md:w-auto md:flex-1">
+          <form onSubmit={search} role="search"
+            className="flex overflow-hidden rounded-full border-2 border-emerald-brand bg-white focus-within:border-gold-deep">
+            <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Department"
+              className="hidden max-w-44 border-r border-gold/60 bg-cream px-3 text-sm outline-none sm:block">
+              <option value="">All departments</option>
+              {mainCategories('all').map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input value={q} onChange={(e) => setQ(e.target.value)}
+              onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 150)}
+              placeholder="Search products and services" aria-label="Search products and services"
+              autoComplete="off" className="min-w-0 flex-1 px-4 py-2.5 text-sm outline-none" />
+            <button aria-label="Search" className="bg-emerald-brand px-5 text-cream"><Glass /></button>
+          </form>
+          {focus && suggestions.length > 0 && (
+            <ul className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl bg-white py-1 shadow-xl ring-1 ring-gold/50">
+              {suggestions.map((s) => (
+                <li key={s.to}>
+                  <Link to={s.to} onClick={() => { setQ(''); setFocus(false) }}
+                    className="flex items-baseline justify-between gap-3 px-4 py-2 text-sm hover:bg-cream">
+                    <span>{s.label}</span>
+                    <span className="text-xs text-gold-deep">{s.hint}</span>
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link to={`/shop?q=${enc(q.trim())}`} onClick={() => setFocus(false)}
+                  className="block border-t border-gold/30 px-4 py-2 text-sm font-medium text-emerald-brand hover:bg-cream">
+                  Search for “{q.trim()}”
+                </Link>
+              </li>
+            </ul>
+          )}
+        </div>
 
         <div className="ml-auto flex items-center gap-4 md:ml-0">
           {user && !isSeller && (
@@ -128,12 +171,12 @@ export default function Navbar() {
               className="absolute inset-x-4 top-full z-50 mt-1 grid max-h-[70vh] gap-6 overflow-y-auto rounded-b-xl bg-white p-6 shadow-xl ring-1 ring-gold/50 sm:grid-cols-2 lg:grid-cols-4">
               {CATALOG.map((c) => (
                 <div key={c.name}>
-                  <Link to={`/shop?category=${encodeURIComponent(c.name)}`}
+                  <Link to={`/shop?category=${enc(c.name)}`}
                     className="font-display text-xl font-semibold text-emerald-brand hover:text-gold-deep">{c.name}</Link>
                   <ul className="mt-1 flex flex-col gap-0.5">
                     {c.subs.slice(0, 6).map((s) => (
                       <li key={s.name}>
-                        <Link to={`/shop?category=${encodeURIComponent(c.name)}&subcategory=${encodeURIComponent(s.name)}`}
+                        <Link to={`/shop?category=${enc(c.name)}&subcategory=${enc(s.name)}`}
                           className="text-sm hover:text-emerald-brand hover:underline">{s.name}</Link>
                       </li>
                     ))}
@@ -144,8 +187,8 @@ export default function Navbar() {
           </details>
           <Link to="/shop?type=product" className={navLink}>Products</Link>
           <Link to="/shop?type=service" className={navLink}>Services</Link>
+          <Link to="/shop?type=product&max=250" className={navLink}>Under R250</Link>
           <Link to="/shop" className={navLink}>Everything</Link>
-          {!user && <Link to="/supplier-rules" className={`${navLink} text-gold-deep`}>Sell on Zolara</Link>}
         </div>
       </nav>
     </header>

@@ -9,11 +9,11 @@ export default function ListingCard({ listing: l, className = '' }) {
   const note = soldOut ? 'Out of stock' : low ? `Only ${l.stock} left` : service && l.durationMinutes ? `${l.durationMinutes} min` : ''
 
   return (
-    <div className={`relative flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-gold/30 transition hover:ring-2 hover:ring-gold-deep ${className}`}>
+    <div className={`group relative flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-gold/30 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-gold-deep ${className}`}>
       <FavouriteButton listingId={l.id} className="absolute right-2 top-2 z-10" />
-      <Link to={`/listing/${l.id}`} className="relative block">
+      <Link to={`/listing/${l.id}`} className="relative block overflow-hidden">
         {l.thumb
-          ? <img src={l.thumb} alt={l.title} loading="lazy" className={`aspect-square w-full object-cover ${soldOut ? 'opacity-60' : ''}`} />
+          ? <img src={l.thumb} alt={l.title} loading="lazy" className={`aspect-square w-full object-cover transition duration-500 group-hover:scale-105 ${soldOut ? 'opacity-60' : ''}`} />
           : <div className="aspect-square w-full bg-cream" />}
         <span className="absolute left-0 top-3 bg-emerald-brand py-0.5 pl-2 pr-4 text-xs text-cream [clip-path:polygon(0_0,100%_0,calc(100%_-_10px)_100%,0_100%)]">
           {service ? 'Service' : 'Product'}
