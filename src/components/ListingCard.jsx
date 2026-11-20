@@ -10,8 +10,8 @@ export default function ListingCard({ listing: l, className = '' }) {
 
   return (
     <div className={`relative ${className}`}>
-      <FavouriteButton listingId={l.id} className="absolute right-3 top-7 z-10" />
-      <Link to={`/listing/${l.id}`} className="block overflow-hidden rounded-t-[3rem] rounded-b-md bg-white ring-1 ring-gold/40">
+      <FavouriteButton listingId={l.id} className="absolute right-3 top-3 z-10" />
+      <Link to={`/listing/${l.id}`} className="block overflow-hidden rounded-2xl bg-white ring-1 ring-gold/40">
         {l.thumb
           ? <img src={l.thumb} alt={l.title} loading="lazy" className={`aspect-[4/5] w-full object-cover ${soldOut ? 'opacity-60' : ''}`} />
           : <div className="aspect-[4/5] w-full bg-cream" />}

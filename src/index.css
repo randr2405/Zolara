@@ -20,3 +20,25 @@ body {
 summary::-webkit-details-marker {
   display: none;
 }
+
+@keyframes scroll-hint {
+  0% { transform: scaleY(0); transform-origin: top; }
+  50% { transform: scaleY(1); transform-origin: top; }
+  51% { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+
+[data-reduce="true"] {
+  height: auto !important;
+}
+
+[data-reduce="true"] .pin-stage {
+  position: relative !important;
+  height: auto !important;
+  min-height: 100vh;
+}
+
+[data-reduce="true"] .pin-track {
+  transform: none !important;
+  overflow-x: auto;
+}
