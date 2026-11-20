@@ -27,6 +27,7 @@ import Privacy from './pages/Privacy.jsx'
 import NotFound from './pages/NotFound.jsx'
 import SellerPayments from './pages/SellerPayments.jsx'
 import AdminReports from './pages/AdminReports.jsx'
+import AdminRefunds from './pages/AdminRefunds.jsx'
 import PaymentResult from './pages/PaymentResult.jsx'
 
 export default function App() {
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/seller/listings/:id/edit" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute><AdminRoute><AdminReports /></AdminRoute></ProtectedRoute>} />
+            <Route path="/admin/refunds" element={<ProtectedRoute><AdminRoute><AdminRefunds /></AdminRoute></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

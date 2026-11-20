@@ -3,6 +3,9 @@ import { formatWhen, sendEmail, siteUrl, zar } from './email.js'
 
 export const COLLECTION = { booking: 'bookings', order: 'orders' }
 
+const adminEmail = () =>
+  process.env.ADMIN_EMAIL || process.env.EMAIL_REPLY_TO || 'info@rragencies.co.za'
+
 async function sellerEmail(sellerId) {
   try {
     return (await adminAuth.getUser(sellerId)).email || ''
@@ -12,7 +15,7 @@ async function sellerEmail(sellerId) {
   }
 }
 
-function messages({ kind, event, item, actor, supplierTo }) {
+function messages({ kind, event, item, actor, supplierTo, adminTo }) {
   const isBooking = kind === 'booking'
   const noun = isBooking ? 'booking' : 'order'
   const title = item.listingTitle || (isBooking ? 'Your booking' : 'Your order')
@@ -139,6 +142,92 @@ function messages({ kind, event, item, actor, supplierTo }) {
       ]
     }
 
+    case 'refund_requested': {
+      const refundDetails = [
+        ...details.slice(0, -1),
+        ['Paid', zar(item.paidCents ?? total)],
+        ['Reason', item.refundReason],
+      ]
+      return [
+        {
+          to: adminTo,
+          subject: `Refund request: ${title}`,
+          heading: 'New refund request',
+          lines: [`${buyerName} has asked for a refund on a paid ${noun} with ${sellerName}.`],
+          details: refundDetails,
+          button: { label: 'Review refund requests', url: `${siteUrl()}/admin/refunds` },
+        },
+        {
+          to: buyerTo,
+          subject: `We received your refund request: ${title}`,
+          heading: 'Your refund request is with us',
+          lines: [
+            'The Zolara team will review it and email you with the outcome.',
+            'Where a refund is due, we process it manually and it can take several business days.',
+          ],
+          details: refundDetails,
+          button: { label: isBooking ? 'View my bookings' : 'View my orders', url: buyerLink },
+        },
+        {
+          to: supplierTo,
+          subject: `Refund requested: ${title}`,
+          heading: 'A customer has requested a refund',
+          lines: [
+            `${buyerName} has asked Zolara for a refund on this ${noun}.`,
+            'Zolara will review the request and let you know the outcome.',
+          ],
+          details: refundDetails,
+          button: { label: `View ${noun}s`, url: sellerLink },
+        },
+      ]
+    }
+
+    case 'refunded': {
+      const refunded = item.refundedCents ?? item.paidCents ?? total
+      const refundDetails = [...details.slice(0, -1), ['Refunded', zar(refunded)]]
+      return [
+        {
+          to: buyerTo,
+          subject: `Your refund was processed: ${title}`,
+          heading: 'Your refund was processed',
+          lines: [
+            `Zolara has refunded ${zar(refunded)} for this ${noun}.`,
+            'Depending on how you paid, it can take several business days to reach you.',
+            item.refundNote ? `Note: ${item.refundNote}` : '',
+          ].filter(Boolean),
+          details: refundDetails,
+          button: { label: isBooking ? 'View my bookings' : 'View my orders', url: buyerLink },
+        },
+        {
+          to: supplierTo,
+          subject: `Customer refunded: ${title}`,
+          heading: 'A payment was refunded',
+          lines: [
+            `Zolara has refunded ${buyerName} for this ${noun}.`,
+            'This sale no longer counts towards your balance. We will contact you if it affects a payout.',
+          ],
+          details: refundDetails,
+          button: { label: `View ${noun}s`, url: sellerLink },
+        },
+      ]
+    }
+
+    case 'refund_rejected':
+      return [
+        {
+          to: buyerTo,
+          subject: `Your refund request was declined: ${title}`,
+          heading: 'Your refund request was declined',
+          lines: [
+            'Zolara reviewed your refund request and could not approve it.',
+            item.refundNote ? `Note: ${item.refundNote}` : '',
+            'If you disagree, please reply to this email.',
+          ].filter(Boolean),
+          details,
+          button: { label: isBooking ? 'View my bookings' : 'View my orders', url: buyerLink },
+        },
+      ]
+
     case 'shipped':
       return [
         {
@@ -184,9 +273,6 @@ function messages({ kind, event, item, actor, supplierTo }) {
   }
 }
 
-// Sends the emails for one event on one booking/order, at most once per event.
-// actor: 'buyer' | 'seller' (only used for cancellations).
-// Returns true if emails went out, false if already sent or the item is missing.
 export async function notifyEvent({ kind, id, event, actor }) {
   const col = COLLECTION[kind]
   if (!col) return false
@@ -204,13 +290,13 @@ export async function notifyEvent({ kind, id, event, actor }) {
   if (!item) return false
 
   try {
-    const needsSupplier = event === 'requested' || event === 'paid' || event === 'cancelled'
+    const needsSupplier = ['requested', 'paid', 'cancelled', 'refund_requested', 'refunded'].includes(event)
+    const adminTo = event === 'refund_requested' ? adminEmail() : ''
     const supplierTo = needsSupplier ? await sellerEmail(item.sellerId) : ''
-    const list = messages({ kind, event, item, actor, supplierTo }).filter((m) => m.to)
+    const list = messages({ kind, event, item, actor, supplierTo, adminTo }).filter((m) => m.to)
     await Promise.all(list.map((m) => sendEmail(m)))
     return true
   } catch (err) {
-    // Release the claim so a later retry can send it.
     await ref.update({ [claimKey]: FieldValue.delete() }).catch(() => {})
     throw err
   }

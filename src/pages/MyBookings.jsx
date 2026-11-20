@@ -10,6 +10,7 @@ import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 import { paymentErrorMessage, startPayment } from '../lib/payments.js'
 import { notify } from '../lib/notify.js'
+import RefundRequest from '../components/RefundRequest.jsx'
 
 function FeedbackForm({ booking, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -156,7 +157,7 @@ export default function MyBookings() {
               date: b.date ? new Date(`${b.date}T12:00:00`) : null,
               time: b.time,
               status: BOOKING_STATUS[b.status] || b.status,
-              payment: b.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
+              payment: b.paymentStatus === 'paid' ? 'Paid' : b.paymentStatus === 'refunded' ? 'Refunded' : 'Not paid',
               price: b.priceCents,
               satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',
               comment: f?.comment || '',
@@ -204,6 +205,7 @@ export default function MyBookings() {
                 <div className="flex flex-col items-end gap-1">
                   <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
                   {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                  {b.paymentStatus === 'refunded' && <span className="rounded-full bg-cream px-3 py-1 text-xs text-gold-deep">Refunded</span>}
                 </div>
               </div>
 
@@ -223,11 +225,7 @@ export default function MyBookings() {
                 </button>
               )}
 
-              {paid && b.status === 'confirmed' && (
-                <p className="mt-3 text-xs">
-                  Payment received. To cancel a paid booking, please contact the Zolara team.
-                </p>
-              )}
+              <RefundRequest kind="booking" item={b} />
 
               {b.status === 'completed' && !feedback[b.id] && <FeedbackForm booking={b} user={user} />}
               {b.status === 'completed' && feedback[b.id] && (

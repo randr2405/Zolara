@@ -80,7 +80,7 @@ export default function SellerBookings() {
             date: b.date ? new Date(`${b.date}T12:00:00`) : null,
             time: b.time,
             status: BOOKING_STATUS[b.status] || b.status,
-            payment: b.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
+            payment: b.paymentStatus === 'paid' ? 'Paid' : b.paymentStatus === 'refunded' ? 'Refunded' : 'Not paid',
             price: b.priceCents,
             customer: b.buyerName,
             phone: b.buyerPhone,
@@ -133,6 +133,7 @@ export default function SellerBookings() {
                 <div className="flex flex-col items-end gap-1">
                   <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
                   {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                  {b.paymentStatus === 'refunded' && <span className="rounded-full bg-cream px-3 py-1 text-xs text-gold-deep">Refunded</span>}
                 </div>
               </div>
 
@@ -154,13 +155,22 @@ export default function SellerBookings() {
                 {b.status === 'confirmed' && !paid && (
                   <p className="text-sm text-gold-deep">Waiting for the customer to pay.</p>
                 )}
-                {b.status === 'confirmed' && paid && (
+                {b.status === 'confirmed' && paid && b.refundStatus !== 'requested' && (
                   <button onClick={() => window.confirm('Mark this service as completed?') && act(b.id, 'completed')}
                     className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">
                     Mark as completed
                   </button>
                 )}
               </div>
+
+              {b.refundStatus === 'requested' && (
+                <p className="mt-3 text-sm text-gold-deep">
+                  The customer has requested a refund. Zolara is reviewing it.
+                </p>
+              )}
+              {b.paymentStatus === 'refunded' && (
+                <p className="mt-3 text-sm text-gold-deep">Zolara refunded this booking.</p>
+              )}
 
               {feedback[b.id] && <SellerFeedback docId={b.id} data={feedback[b.id]} />}
             </li>

@@ -72,7 +72,6 @@ export default function SellerOrders() {
     [user.uid]
   )
 
-  // fn does the update; if it works, the matching email event is sent for order `id`.
   async function run(fn, id, event) {
     setError('')
     try {
@@ -116,7 +115,7 @@ export default function SellerOrders() {
             price: o.priceCents,
             total: o.totalCents,
             status: ORDER_STATUS[o.status] || o.status,
-            payment: o.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
+            payment: o.paymentStatus === 'paid' ? 'Paid' : o.paymentStatus === 'refunded' ? 'Refunded' : 'Not paid',
             customer: o.buyerName,
             phone: o.buyerPhone,
             email: o.buyerEmail,
@@ -173,6 +172,7 @@ export default function SellerOrders() {
                 <div className="flex flex-col items-end gap-1">
                   <span className="rounded-full bg-cream px-3 py-1 text-xs">{ORDER_STATUS[o.status]}</span>
                   {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                  {o.paymentStatus === 'refunded' && <span className="rounded-full bg-cream px-3 py-1 text-xs text-gold-deep">Refunded</span>}
                 </div>
               </div>
 
@@ -199,15 +199,24 @@ export default function SellerOrders() {
                       className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Cancel order</button>
                   </>
                 )}
-                {o.status === 'confirmed' && paid && (
+                {o.status === 'confirmed' && paid && o.refundStatus !== 'requested' && (
                   <button onClick={() => window.confirm('Mark this order as shipped?') && run(() => setStatus(o.id, 'shipped'), o.id, 'shipped')}
                     className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as shipped</button>
                 )}
-                {o.status === 'shipped' && (
+                {o.status === 'shipped' && o.refundStatus !== 'requested' && o.paymentStatus !== 'refunded' && (
                   <button onClick={() => window.confirm('Mark this order as delivered?') && run(() => setStatus(o.id, 'delivered'), o.id, 'delivered')}
                     className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as delivered</button>
                 )}
               </div>
+
+              {o.refundStatus === 'requested' && (
+                <p className="mt-3 text-sm text-gold-deep">
+                  The customer has requested a refund. Please do not ship until Zolara has decided.
+                </p>
+              )}
+              {o.paymentStatus === 'refunded' && (
+                <p className="mt-3 text-sm text-gold-deep">Zolara refunded this order.</p>
+              )}
 
               {feedback[o.id] && <SellerFeedback docId={o.id} data={feedback[o.id]} />}
             </li>

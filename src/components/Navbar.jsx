@@ -13,7 +13,12 @@ export default function Navbar() {
         <Link to="/shop" className="text-emerald-brand">Shop</Link>
         {user ? (
           <>
-            {isAdmin && <Link to="/admin" className="font-medium text-gold-deep">Admin</Link>}
+            {isAdmin && (
+              <>
+                <Link to="/admin" className="font-medium text-gold-deep">Admin</Link>
+                <Link to="/admin/refunds" className="font-medium text-gold-deep">Refunds</Link>
+              </>
+            )}
             {profile?.role === 'seller' ? (
               <>
                 <Link to="/seller" className="text-emerald-brand">Dashboard</Link>

@@ -10,6 +10,7 @@ import { ORDER_STATUS } from '../lib/orders.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 import { paymentErrorMessage, startPayment } from '../lib/payments.js'
 import { notify } from '../lib/notify.js'
+import RefundRequest from '../components/RefundRequest.jsx'
 
 function FeedbackForm({ order, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -158,7 +159,7 @@ export default function MyOrders() {
               price: o.priceCents,
               total: o.totalCents,
               status: ORDER_STATUS[o.status] || o.status,
-              payment: o.paymentStatus === 'paid' ? 'Paid' : 'Not paid',
+              payment: o.paymentStatus === 'paid' ? 'Paid' : o.paymentStatus === 'refunded' ? 'Refunded' : 'Not paid',
               satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',
               comment: f?.comment || '',
             }
@@ -208,6 +209,7 @@ export default function MyOrders() {
                 <div className="flex flex-col items-end gap-1">
                   <span className="rounded-full bg-cream px-3 py-1 text-xs">{ORDER_STATUS[o.status]}</span>
                   {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
+                  {o.paymentStatus === 'refunded' && <span className="rounded-full bg-cream px-3 py-1 text-xs text-gold-deep">Refunded</span>}
                 </div>
               </div>
 
@@ -226,6 +228,8 @@ export default function MyOrders() {
                   Cancel order
                 </button>
               )}
+
+              <RefundRequest kind="order" item={o} />
 
               {o.status === 'delivered' && !feedback[o.id] && <FeedbackForm order={o} user={user} />}
               {o.status === 'delivered' && feedback[o.id] && (

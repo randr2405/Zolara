@@ -1,6 +1,6 @@
 export const OWNER = 'R&R Agencies'
 export const CONTACT_EMAIL = 'info@rragencies.co.za'
-export const LAST_UPDATED = '19 November 2026'
+export const LAST_UPDATED = '20 November 2026'
 
 export const TERMS = {
   title: 'Terms of Use',
@@ -30,7 +30,7 @@ export const TERMS = {
         'A booking or order is a request. It becomes confirmed only when the supplier accepts it.',
         'You may cancel a request before the supplier accepts it. After that, please contact the supplier.',
         'After a supplier accepts your request, you can pay through Zolara using PayFast. Your booking or order shows as paid once PayFast confirms the payment.',
-        'A paid booking or order cannot be cancelled on Zolara. If something goes wrong, please contact us. Where a refund is due, we process it manually, and it can take several business days.',
+        'A paid booking or order cannot be cancelled on Zolara. If something goes wrong, you can request a refund from My bookings or My orders. Zolara reviews each request, and where a refund is due we process it manually, which can take several business days.',
         'Please give accurate contact and delivery details. The supplier will use them to reach you.',
         'After your service or order, please tell us honestly whether you were satisfied.',
       ],
