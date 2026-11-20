@@ -2,44 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, limit, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { CATALOG, formatZAR } from '../lib/constants.js'
-import useScrollProgress from '../lib/useScrollProgress.js'
+import { CATALOG } from '../lib/constants.js'
 import ListingCard from '../components/ListingCard.jsx'
-import Reveal from '../components/Reveal.jsx'
-import logo from '../assets/zolara-logo.png'
 
-const TRAVEL = 2800
-
-const SLOTS = [
-  { x: -30, y: -20, z: -300, w: 260, r: -7 },
-  { x: 28, y: -22, z: -700, w: 300, r: 6 },
-  { x: -18, y: 22, z: -1000, w: 280, r: 4 },
-  { x: 34, y: 18, z: -1300, w: 250, r: -6 },
-  { x: -34, y: -2, z: -1600, w: 300, r: 8 },
-  { x: 8, y: -10, z: -1900, w: 320, r: -3 },
-  { x: 24, y: 26, z: -2200, w: 260, r: 7 },
-  { x: -8, y: 28, z: -2500, w: 280, r: -5 },
+const SLIDES = [
+  { title: 'Shop it.', text: 'Products from local sellers, all in one calm place.', cta: 'Browse products', to: '/shop?type=product', bg: 'bg-emerald-brand', fg: 'text-cream', btn: 'bg-gold text-emerald-brand', art: 'text-gold' },
+  { title: 'Book it.', text: 'Stylists, plumbers, tutors and more. Pay only after they accept.', cta: 'Find a service', to: '/shop?type=service', bg: 'bg-gold', fg: 'text-emerald-brand', btn: 'bg-emerald-brand text-cream', art: 'text-emerald-brand' },
+  { title: 'List it.', text: 'Your first 3 months are free, and we take no commission on your sales.', cta: 'Start selling', to: '/signup', bg: 'bg-white', fg: 'text-emerald-brand', btn: 'bg-emerald-brand text-cream', art: 'text-gold' },
 ]
 
-const BRANDS = [
-  { k: 'logo' },
-  { k: 'swoosh' },
-  { k: 'word', text: 'Local', bg: 'bg-gold', fg: 'text-emerald-brand' },
-  { k: 'word', text: 'Trusted', bg: 'bg-cream', fg: 'text-emerald-brand' },
-  { k: 'word', text: 'Calm', bg: 'bg-emerald-brand', fg: 'text-gold' },
-  { k: 'swoosh' },
+const POPULAR = [
+  'Hair styling', 'Plumbing', 'Skincare', 'Car wash & detailing', 'Baked goods',
+  'Photography', 'Tutoring', 'Cleaning', 'Furniture', 'Phones & accessories',
 ]
 
-const LINES = [
-  ['Shop it.', '/shop?type=product', 0.04],
-  ['Book it.', '/shop?type=service', 0.16],
-  ['Love it.', '/shop', 0.28],
-]
+const SUB_TO_CAT = Object.fromEntries(CATALOG.flatMap((c) => c.subs.map((s) => [s.name, c.name])))
 
 const TRUST = [
-  ['You pay after they accept', 'Nothing is charged until the supplier confirms your order or booking.'],
-  ['Paid through PayFast', 'Your card and bank details are never seen or stored by Zolara.'],
-  ['Suppliers are reviewed', 'Every business is checked before its listings go live.'],
+  ['Pay after they accept', 'Nothing is charged until the supplier confirms.'],
+  ['Secure PayFast checkout', 'We never see or store your card details.'],
+  ['Reviewed suppliers', 'Every business is checked before going live.'],
+  ['Local, every time', 'South African businesses only.'],
 ]
 
 const newest = (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
@@ -51,7 +34,7 @@ async function load(type) {
       where('active', '==', true),
       where('sellerApproved', '==', true),
       where('type', '==', type),
-      limit(24)
+      limit(30)
     )
   )
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(newest)
@@ -63,181 +46,101 @@ function availability(cat) {
   return types.has('product') ? 'Products' : 'Services'
 }
 
-function Wave({ flip = false }) {
+function Banner() {
+  const [i, setI] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  useEffect(() => {
+    if (paused) return undefined
+    const t = setInterval(() => setI((n) => (n + 1) % SLIDES.length), 6000)
+    return () => clearInterval(t)
+  }, [paused])
+
+  const go = (n) => setI((n + SLIDES.length) % SLIDES.length)
+
   return (
-    <svg viewBox="0 0 1440 120" preserveAspectRatio="none"
-      className={`block h-14 w-full sm:h-24 ${flip ? 'rotate-180' : ''}`} aria-hidden="true">
-      <path d="M0 70 C 240 10, 480 120, 760 70 S 1200 20, 1440 60 L1440 120 L0 120 Z" fill="#0B3D2E" />
-      <path d="M0 70 C 240 10, 480 120, 760 70 S 1200 20, 1440 60" fill="none" stroke="#C9A24B"
-        strokeWidth="3" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
-function Swoosh() {
-  return (
-    <svg viewBox="0 0 200 250" className="h-full w-full" aria-hidden="true">
-      <path d="M0 200 C 60 190, 120 120, 200 40 C 150 150, 80 230, 0 250 Z" fill="#C9A24B" />
-      <path d="M0 120 C 50 110, 110 70, 200 0 C 140 90, 70 140, 0 160 Z" fill="#FAF6EE" opacity="0.35" />
-    </svg>
-  )
-}
-
-function Panel({ slot, brand, listing }) {
-  const style = {
-    '--x': slot.x,
-    '--y': slot.y,
-    '--z': slot.z,
-    width: `min(${slot.w}px, 42vw)`,
-    transform: `translate3d(-50%, -50%, 0) translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh), calc(var(--z) * 1px)) rotate(${slot.r}deg)`,
-    opacity: `min(clamp(0, calc((2600 + var(--z) + var(--p) * ${TRAVEL}) / 900), 1), clamp(0, calc((800 - var(--z) - var(--p) * ${TRAVEL}) / 500), 1))`,
-  }
-
-  let body
-  if (listing) {
-    body = (
-      <>
-        <img src={listing.thumb} alt="" className="h-full w-full object-cover" />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-brand/90 to-transparent p-4 pt-12 text-cream">
-          <p className="truncate text-sm">{listing.title}</p>
-          <p className="font-display text-xl font-semibold text-gold">{formatZAR(listing.priceCents)}</p>
+    <div className="relative h-72 overflow-hidden rounded-2xl ring-1 ring-gold/60 lg:h-[26rem]"
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      {SLIDES.map((s, n) => (
+        <div key={s.title} aria-hidden={n !== i}
+          className={`absolute inset-0 flex items-center p-8 transition-opacity duration-700 sm:p-12 ${s.bg} ${s.fg} ${
+            n === i ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+          <svg viewBox="0 0 400 400" className={`pointer-events-none absolute right-0 top-0 h-full w-3/5 ${s.art}`} aria-hidden="true">
+            <path d="M0 380 C 120 340, 260 200, 400 40 C 330 230, 180 380, 0 400 Z" fill="currentColor" opacity="0.9" />
+            <path d="M80 400 C 200 350, 320 270, 400 190 C 360 300, 240 400, 80 400 Z" fill="currentColor" opacity="0.35" />
+          </svg>
+          <div className="relative max-w-md">
+            <h2 className="font-display text-6xl font-semibold leading-none sm:text-7xl">{s.title}</h2>
+            <p className="mt-3 text-base sm:text-lg">{s.text}</p>
+            <Link to={s.to} tabIndex={n === i ? 0 : -1} className={`mt-5 inline-block rounded-full px-7 py-3 font-medium ${s.btn}`}>{s.cta}</Link>
+          </div>
         </div>
-      </>
-    )
-  } else if (brand.k === 'logo') {
-    body = <div className="flex h-full items-center justify-center bg-white p-6"><img src={logo} alt="" className="w-full" /></div>
-  } else if (brand.k === 'swoosh') {
-    body = <div className="h-full bg-emerald-brand"><Swoosh /></div>
-  } else {
-    body = (
-      <div className={`flex h-full items-end p-5 ${brand.bg}`}>
-        <p className={`font-display text-5xl font-semibold ${brand.fg}`}>{brand.text}</p>
+      ))}
+      <button onClick={() => go(i - 1)} aria-label="Previous slide"
+        className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl text-emerald-brand">‹</button>
+      <button onClick={() => go(i + 1)} aria-label="Next slide"
+        className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl text-emerald-brand">›</button>
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
+        {SLIDES.map((s, n) => (
+          <button key={s.title} onClick={() => setI(n)} aria-label={`Show slide ${n + 1}`}
+            className={`h-2 rounded-full transition-all ${n === i ? 'w-6 bg-gold-deep' : 'w-2 bg-charcoal/40'}`} />
+        ))}
       </div>
-    )
-  }
-
-  return (
-    <div style={style} aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-1/2 aspect-[4/5] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-gold/60">
-      {body}
     </div>
   )
 }
 
-function Hero({ listings }) {
-  const ref = useRef(null)
-  useScrollProgress(ref)
-
-  const withImages = listings.filter((l) => l.thumb)
-  let li = 0
-  let bi = 0
-  const panels = SLOTS.map((slot, i) => {
-    if (i % 2 === 0 && withImages[li]) return { slot, listing: withImages[li++], brand: null }
-    return { slot, listing: null, brand: BRANDS[bi++ % BRANDS.length] }
-  })
-
+function SideTiles() {
   return (
-    <section ref={ref} className="relative bg-cream" style={{ height: '340vh', '--p': 0 }}>
-      <div className="pin-stage sticky top-0 h-screen overflow-hidden" style={{ perspective: '1200px' }}>
-        <div className="absolute inset-0"
-          style={{
-            transformStyle: 'preserve-3d',
-            transform: `translateZ(calc(var(--p) * ${TRAVEL}px)) rotateY(calc((var(--p) - 0.5) * 12deg))`,
-          }}>
-          {panels.map((p, i) => <Panel key={i} slot={p.slot} brand={p.brand} listing={p.listing} />)}
-        </div>
-
-        <div className="relative z-10 mx-auto flex h-full w-full max-w-7xl flex-col justify-center px-4 pt-16"
-          style={{
-            opacity: 'clamp(0, calc((0.8 - var(--p)) * 8), 1)',
-            transform: 'scale(calc(1 + var(--p) * 0.15))',
-            textShadow: '0 0 40px #FAF6EE, 0 0 12px #FAF6EE',
-          }}>
-          <h1 className="font-display text-7xl font-semibold leading-[0.9] text-emerald-brand sm:text-9xl">
-            {LINES.map(([text, to, start]) => {
-              const a = `clamp(0, calc((var(--p) - ${start}) * 10), 1)`
-              return (
-                <Link key={text} to={to} className="block w-fit hover:text-gold-deep"
-                  style={{
-                    '--a': a,
-                    opacity: 'var(--a)',
-                    transform: 'translateY(calc((1 - var(--a)) * 48px))',
-                    filter: 'blur(calc((1 - var(--a)) * 12px))',
-                  }}>
-                  {text}
-                </Link>
-              )
-            })}
-          </h1>
-          <div className="mt-8" style={{ opacity: 'clamp(0, calc(1 - var(--p) * 5), 1)' }}>
-            <p className="max-w-md text-lg">A calm, trusted place to buy and book from local South Africans.</p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/shop?type=product" className="rounded-full bg-emerald-brand px-7 py-3 text-cream" style={{ textShadow: 'none' }}>Browse products</Link>
-              <Link to="/shop?type=service" className="rounded-full border border-emerald-brand bg-cream px-7 py-3 text-emerald-brand" style={{ textShadow: 'none' }}>Find a service</Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 text-xs text-emerald-brand"
-          style={{ opacity: 'clamp(0, calc(1 - var(--p) * 12), 1)' }}>
-          <span>Scroll</span>
-          <span className="block h-10 w-px bg-emerald-brand" style={{ animation: 'scroll-hint 2s ease-in-out infinite' }} />
-        </div>
-
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-emerald-brand px-4 text-center"
-          style={{ clipPath: 'circle(max(0%, calc((var(--p) - 0.82) * 600%)) at 50% 60%)' }}>
-          <p className="font-display text-5xl font-semibold text-cream sm:text-7xl"
-            style={{ opacity: 'clamp(0, calc((var(--p) - 0.9) * 10), 1)' }}>
-            Local, all in one place.
-          </p>
-        </div>
-      </div>
-    </section>
+    <>
+      <Link to="/shop" className="flex flex-1 flex-col justify-end rounded-2xl bg-cream p-5 ring-1 ring-gold/60">
+        <span className="font-display text-2xl font-semibold leading-tight text-emerald-brand">Founder and preferred suppliers</span>
+        <span className="mt-1 text-sm">Shown first, on the same terms as everyone.</span>
+      </Link>
+      <Link to="/supplier-rules" className="flex flex-1 flex-col justify-end rounded-2xl bg-emerald-brand p-5 text-cream">
+        <span className="font-display text-2xl font-semibold leading-tight text-gold">Sell on Zolara</span>
+        <span className="mt-1 text-sm">3 months free. No commission.</span>
+      </Link>
+    </>
   )
 }
 
-function Gallery({ items }) {
-  const ref = useRef(null)
-  const track = useRef(null)
-  useScrollProgress(ref)
+function Title({ children, to }) {
+  return (
+    <div className="mb-4 flex items-center gap-3">
+      <h2 className="bg-emerald-brand py-2 pl-5 pr-10 font-display text-2xl font-semibold text-cream [clip-path:polygon(0_0,100%_0,calc(100%_-_20px)_100%,0_100%)]">
+        {children}
+      </h2>
+      <span className="h-0.5 flex-1 bg-gold" />
+      {to && <Link to={to} className="shrink-0 text-sm font-medium text-emerald-brand underline">See all</Link>}
+    </div>
+  )
+}
 
-  useEffect(() => {
-    const section = ref.current
-    const el = track.current
-    if (!section || !el) return undefined
+function Rail({ title, to, items, loading }) {
+  const scroller = useRef(null)
+  if (!loading && items.length === 0) return null
 
-    function measure() {
-      if (section.dataset.reduce === 'true') return
-      const dist = Math.max(0, el.scrollWidth - window.innerWidth)
-      section.style.height = `${window.innerHeight + dist}px`
-      section.style.setProperty('--dist', `${dist}px`)
-    }
-
-    measure()
-    const timer = setTimeout(measure, 500)
-    window.addEventListener('resize', measure)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('resize', measure)
-    }
-  }, [items])
+  const by = (dir) =>
+    scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' })
 
   return (
-    <section ref={ref} className="relative" style={{ height: '100vh', '--p': 0, '--dist': '0px' }}>
-      <div className="pin-stage sticky top-0 flex h-screen flex-col justify-center overflow-hidden pt-20">
-        <div ref={track} className="pin-track flex w-max gap-6 px-4"
-          style={{ transform: 'translate3d(calc(var(--p) * var(--dist) * -1), 0, 0)', willChange: 'transform' }}>
-          <div className="flex w-[min(80vw,24rem)] shrink-0 flex-col justify-center pr-6">
-            <h2 className="font-display text-6xl font-semibold leading-none text-emerald-brand">Just listed</h2>
-            <p className="mt-4">Fresh from local sellers. Keep scrolling.</p>
-            <Link to="/shop?type=product" className="mt-4 w-fit text-sm text-emerald-brand underline">See all products</Link>
-          </div>
-          {items.map((l) => <ListingCard key={l.id} listing={l} className="w-64 shrink-0 sm:w-72" />)}
-          <div className="w-4 shrink-0" />
+    <section className="mx-auto mt-10 max-w-7xl px-4">
+      <Title to={to}>{title}</Title>
+      <div className="relative">
+        <button onClick={() => by(-1)} aria-label="Scroll left"
+          className="absolute -left-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl text-emerald-brand shadow ring-1 ring-gold/50 md:flex">‹</button>
+        <div ref={scroller} className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-80 w-44 shrink-0 animate-pulse rounded-xl bg-white sm:w-52" />
+              ))
+            : items.slice(0, 12).map((l) => (
+                <ListingCard key={l.id} listing={l} className="w-44 shrink-0 snap-start sm:w-52" />
+              ))}
         </div>
-        <div className="absolute inset-x-4 bottom-8 h-px bg-gold/40">
-          <div className="h-px bg-gold-deep" style={{ width: 'calc(var(--p) * 100%)' }} />
-        </div>
+        <button onClick={() => by(1)} aria-label="Scroll right"
+          className="absolute -right-3 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl text-emerald-brand shadow ring-1 ring-gold/50 md:flex">›</button>
       </div>
     </section>
   )
@@ -259,72 +162,89 @@ export default function Home() {
     return () => { alive = false }
   }, [])
 
-  const mixed = [...products, ...services].sort(newest)
+  const under = products
+    .filter((l) => l.priceCents <= 25000 && l.stock > 0)
+    .sort((a, b) => a.priceCents - b.priceCents)
+  const almost = products.filter((l) => l.stock > 0 && l.stock <= 3)
+  const preferred = [...products, ...services].filter((l) => l.sellerPreferred).sort(newest)
 
   return (
-    <main>
-      <Hero listings={mixed} />
-
-      <section className="bg-emerald-brand text-cream">
-        <div className="mx-auto max-w-7xl px-4 pb-4 pt-8">
-          <Reveal as="h2" className="font-display text-5xl font-semibold text-gold">Departments</Reveal>
-          <div className="mt-8 grid gap-x-12 sm:grid-cols-2 lg:grid-cols-3">
-            {CATALOG.map((c, i) => (
-              <Reveal key={c.name} delay={(i % 3) * 90}>
-                <Link to={`/shop?category=${encodeURIComponent(c.name)}`}
-                  className="group flex items-baseline justify-between gap-3 border-b border-gold/30 py-3 transition hover:border-gold">
-                  <span className="font-display text-2xl transition group-hover:translate-x-2 group-hover:text-gold">{c.name}</span>
-                  <span className="shrink-0 text-xs text-cream/70">{availability(c)}</span>
-                </Link>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-        <Wave flip />
+    <main className="pb-6">
+      <section className="mx-auto grid max-w-7xl gap-3 px-4 pt-4 lg:grid-cols-[14rem_1fr] xl:grid-cols-[14rem_1fr_16rem]">
+        <nav aria-label="Departments" className="hidden overflow-y-auto rounded-2xl bg-white p-2 ring-1 ring-gold/40 lg:block lg:h-[26rem]">
+          <p className="px-3 py-2 font-display text-xl font-semibold text-emerald-brand">Departments</p>
+          {CATALOG.map((c) => (
+            <Link key={c.name} to={`/shop?category=${encodeURIComponent(c.name)}`}
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-cream hover:text-emerald-brand">
+              {c.name}
+              <span className="text-gold-deep" aria-hidden="true">›</span>
+            </Link>
+          ))}
+        </nav>
+        <Banner />
+        <div className="hidden flex-col gap-3 xl:flex xl:h-[26rem]"><SideTiles /></div>
+        <div className="grid h-36 grid-cols-2 gap-3 xl:hidden lg:col-span-2"><SideTiles /></div>
       </section>
 
-      {products.length > 0 ? (
-        <Gallery items={products.slice(0, 10)} />
-      ) : (
-        <section className="mx-auto mt-16 max-w-7xl px-4">
-          <h2 className="font-display text-5xl font-semibold text-emerald-brand">Just listed</h2>
-          <p className="mt-2 text-sm">{loading ? 'Loading…' : 'New products are on their way.'}</p>
-        </section>
-      )}
-
-      <section className="mx-auto mt-16 max-w-7xl px-4">
-        <div className="mb-6 flex items-baseline justify-between gap-4 border-b border-gold/50 pb-3">
-          <Reveal as="h2" className="font-display text-5xl font-semibold text-emerald-brand">Ready to book</Reveal>
-          <Link to="/shop?type=service" className="text-sm text-emerald-brand underline">See all</Link>
-        </div>
-        {!loading && services.length === 0 && <p className="text-sm">New services are on their way.</p>}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
-          {services.slice(0, 4).map((l, i) => (
-            <Reveal key={l.id} delay={i * 100}><ListingCard listing={l} /></Reveal>
+      <section className="mx-auto mt-4 max-w-7xl px-4">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          {POPULAR.map((s) => (
+            <Link key={s}
+              to={`/shop?category=${encodeURIComponent(SUB_TO_CAT[s])}&subcategory=${encodeURIComponent(s)}`}
+              className="whitespace-nowrap rounded-full border border-gold-deep bg-white px-4 py-1.5 text-sm text-emerald-brand hover:bg-emerald-brand hover:text-cream">
+              {s}
+            </Link>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto mt-20 grid max-w-7xl gap-8 px-4 md:grid-cols-3">
-        {TRUST.map(([title, text], i) => (
-          <Reveal key={title} delay={i * 120} className="border-l-2 border-gold pl-4">
-            <p className="font-display text-2xl font-semibold text-emerald-brand">{title}</p>
-            <p className="mt-1 text-sm">{text}</p>
-          </Reveal>
+      <section className="mx-auto mt-4 grid max-w-7xl grid-cols-2 gap-px overflow-hidden border-y border-gold/40 bg-gold/30 px-0 md:grid-cols-4">
+        {TRUST.map(([title, text]) => (
+          <div key={title} className="bg-white px-4 py-3">
+            <p className="text-sm font-semibold text-emerald-brand">{title}</p>
+            <p className="text-xs">{text}</p>
+          </div>
         ))}
       </section>
 
-      <section className="mx-auto mt-20 max-w-7xl px-4">
-        <Reveal className="border-y border-gold py-12 text-center">
-          <h2 className="font-display text-5xl font-semibold text-emerald-brand">Sell on Zolara</h2>
-          <p className="mx-auto mt-3 max-w-xl">
-            Get found and paid without building your own website. Your first 3 months are free, and we take no commission on your sales.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link to="/signup" className="rounded-full bg-emerald-brand px-7 py-3 text-cream">Start selling</Link>
-            <Link to="/supplier-rules" className="rounded-full border border-emerald-brand px-7 py-3 text-emerald-brand">Read the supplier rules</Link>
+      <Rail title="New arrivals" to="/shop?type=product" items={products} loading={loading} />
+      <Rail title="Great under R250" to="/shop?type=product" items={under} loading={false} />
+      <Rail title="Almost gone" to="/shop?type=product" items={almost} loading={false} />
+      <Rail title="Book a local service" to="/shop?type=service" items={services} loading={loading} />
+      <Rail title="Founder and preferred suppliers" to="/shop" items={preferred} loading={false} />
+
+      <section className="mx-auto mt-12 max-w-7xl px-4">
+        <Title>Shop by department</Title>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          {CATALOG.map((c) => (
+            <Link key={c.name} to={`/shop?category=${encodeURIComponent(c.name)}`}
+              className="flex flex-col gap-2 rounded-xl bg-white p-4 ring-1 ring-gold/40 transition hover:ring-2 hover:ring-emerald-brand">
+              <span className="font-display text-xl font-semibold leading-tight text-emerald-brand">{c.name}</span>
+              <span className="text-xs">{c.subs.slice(0, 3).map((s) => s.name).join(', ')} and more</span>
+              <span className="mt-auto w-fit bg-gold py-0.5 pl-3 pr-2 text-xs font-medium text-emerald-brand [clip-path:polygon(0_50%,8px_0,100%_0,100%_100%,8px_100%)]">
+                {availability(c)}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto mt-12 max-w-7xl px-4">
+        <div className="relative overflow-hidden rounded-2xl bg-emerald-brand p-8 text-cream sm:p-12">
+          <svg viewBox="0 0 400 400" className="pointer-events-none absolute right-0 top-0 h-full w-1/2 text-gold" aria-hidden="true">
+            <path d="M0 380 C 120 340, 260 200, 400 40 C 330 230, 180 380, 0 400 Z" fill="currentColor" opacity="0.5" />
+          </svg>
+          <div className="relative max-w-xl">
+            <h2 className="font-display text-4xl font-semibold text-gold">List it on Zolara</h2>
+            <p className="mt-2">
+              Get found and paid without building your own website. Your first 3 months are free, and we take no commission on your sales.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to="/signup" className="rounded-full bg-gold px-7 py-3 font-medium text-emerald-brand">Start selling</Link>
+              <Link to="/supplier-rules" className="rounded-full border border-gold px-7 py-3 font-medium text-gold">Read the supplier rules</Link>
+            </div>
           </div>
-        </Reveal>
+        </div>
       </section>
     </main>
   )

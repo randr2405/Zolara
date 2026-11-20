@@ -28,7 +28,7 @@ export default function Shop() {
   const [loading, setLoading] = useState(true)
   const [type, setType] = useState(params.get('type') || 'all')
   const [category, setCategory] = useState(params.get('category') || '')
-  const [subcategory, setSubcategory] = useState('')
+  const [subcategory, setSubcategory] = useState(params.get('subcategory') || '')
   const [search, setSearch] = useState(params.get('q') || '')
   const [province, setProvince] = useState('')
   const [city, setCity] = useState('')
@@ -39,7 +39,7 @@ export default function Shop() {
   useEffect(() => {
     setType(params.get('type') || 'all')
     setCategory(params.get('category') || '')
-    setSubcategory('')
+    setSubcategory(params.get('subcategory') || '')
     setSearch(params.get('q') || '')
   }, [params])
 

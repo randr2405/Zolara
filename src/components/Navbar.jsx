@@ -2,11 +2,11 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import useIsAdmin from '../lib/useIsAdmin.js'
-import { mainCategories } from '../lib/constants.js'
+import { CATALOG, mainCategories } from '../lib/constants.js'
 import logo from '../assets/zolara-logo.png'
 
 const item = 'block rounded px-3 py-2 text-sm hover:bg-cream'
-const trigger = 'cursor-pointer list-none text-sm text-emerald-brand hover:text-gold-deep'
+const navLink = 'whitespace-nowrap text-sm font-medium text-emerald-brand hover:text-gold-deep'
 
 function Heart() {
   return (
@@ -30,6 +30,7 @@ export default function Navbar() {
   const isAdmin = useIsAdmin()
   const navigate = useNavigate()
   const [q, setQ] = useState('')
+  const [cat, setCat] = useState('')
   const dept = useRef(null)
   const acct = useRef(null)
   const isSeller = profile?.role === 'seller'
@@ -42,36 +43,38 @@ export default function Navbar() {
 
   function search(e) {
     e.preventDefault()
-    const term = q.trim()
-    navigate(term ? `/shop?q=${encodeURIComponent(term)}` : '/shop')
+    const p = new URLSearchParams()
+    if (cat) p.set('category', cat)
+    if (q.trim()) p.set('q', q.trim())
+    const s = p.toString()
+    navigate(s ? `/shop?${s}` : '/shop')
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-gold bg-cream/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+    <header className="sticky top-0 z-40 bg-white shadow-sm">
+      <div className="bg-emerald-brand px-4 py-1.5 text-xs text-cream">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <p className="text-gold">Support local businesses, don’t kill them.</p>
+          <div className="flex gap-4">
+            <Link to="/supplier-rules" className="hover:text-gold">Supplier rules</Link>
+            {!user && <Link to="/signup" className="hover:text-gold">Sell on Zolara</Link>}
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
         <Link to="/" className="shrink-0"><img src={logo} alt="Zolara" className="h-11" /></Link>
 
-        <nav className="flex items-center gap-5">
-          <Link to="/shop?type=product" className={trigger}>Shop</Link>
-          <Link to="/shop?type=service" className={trigger}>Book</Link>
-          <details ref={dept} className="relative">
-            <summary className={trigger}>Departments</summary>
-            <div onClick={closeAll}
-              className="absolute left-0 mt-3 grid w-[min(90vw,34rem)] gap-x-6 rounded-lg bg-white p-4 shadow-lg ring-1 ring-gold/50 sm:grid-cols-2">
-              {mainCategories('all').map((c) => (
-                <Link key={c} to={`/shop?category=${encodeURIComponent(c)}`}
-                  className="border-b border-gold/20 py-2 font-display text-lg hover:text-gold-deep">{c}</Link>
-              ))}
-            </div>
-          </details>
-          {!user && <Link to="/supplier-rules" className={trigger}>Sell</Link>}
-        </nav>
-
-        <form onSubmit={search} role="search" className="order-last flex w-full items-center border-b border-gold-deep md:order-none md:ml-auto md:w-72">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Zolara"
-            aria-label="Search products and services"
-            className="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-sm outline-none" />
-          <button aria-label="Search" className="px-1 text-emerald-brand"><Glass /></button>
+        <form onSubmit={search} role="search"
+          className="order-last flex w-full overflow-hidden rounded-full border-2 border-emerald-brand bg-white md:order-none md:w-auto md:flex-1">
+          <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Department"
+            className="hidden max-w-44 border-r border-gold/60 bg-cream px-3 text-sm outline-none sm:block">
+            <option value="">All departments</option>
+            {mainCategories('all').map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products and services"
+            aria-label="Search products and services" className="min-w-0 flex-1 px-4 py-2.5 text-sm outline-none" />
+          <button aria-label="Search" className="bg-emerald-brand px-5 text-cream"><Glass /></button>
         </form>
 
         <div className="ml-auto flex items-center gap-4 md:ml-0">
@@ -80,7 +83,7 @@ export default function Navbar() {
           )}
           {user ? (
             <details ref={acct} className="relative">
-              <summary className={trigger}>{firstName}</summary>
+              <summary className={`cursor-pointer list-none ${navLink}`}>Hi, {firstName}</summary>
               <div onClick={closeAll} className="absolute right-0 mt-3 w-52 rounded-lg bg-white p-2 shadow-lg ring-1 ring-gold/50">
                 {isAdmin && (
                   <>
@@ -108,12 +111,43 @@ export default function Navbar() {
             </details>
           ) : (
             <>
-              <Link to="/login" className={trigger}>Log in</Link>
+              <Link to="/login" className={navLink}>Log in</Link>
               <Link to="/signup" className="rounded-full bg-emerald-brand px-5 py-2 text-sm text-cream">Sign up</Link>
             </>
           )}
         </div>
       </div>
+
+      <nav className="border-t border-gold/40 bg-cream">
+        <div className="relative mx-auto flex max-w-7xl items-center gap-6 overflow-x-auto px-4 py-2 md:overflow-visible">
+          <details ref={dept}>
+            <summary className="flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-emerald-brand px-4 py-1.5 text-sm font-medium text-cream">
+              <span aria-hidden="true">☰</span> All departments
+            </summary>
+            <div onClick={closeAll}
+              className="absolute inset-x-4 top-full z-50 mt-1 grid max-h-[70vh] gap-6 overflow-y-auto rounded-b-xl bg-white p-6 shadow-xl ring-1 ring-gold/50 sm:grid-cols-2 lg:grid-cols-4">
+              {CATALOG.map((c) => (
+                <div key={c.name}>
+                  <Link to={`/shop?category=${encodeURIComponent(c.name)}`}
+                    className="font-display text-xl font-semibold text-emerald-brand hover:text-gold-deep">{c.name}</Link>
+                  <ul className="mt-1 flex flex-col gap-0.5">
+                    {c.subs.slice(0, 6).map((s) => (
+                      <li key={s.name}>
+                        <Link to={`/shop?category=${encodeURIComponent(c.name)}&subcategory=${encodeURIComponent(s.name)}`}
+                          className="text-sm hover:text-emerald-brand hover:underline">{s.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </details>
+          <Link to="/shop?type=product" className={navLink}>Products</Link>
+          <Link to="/shop?type=service" className={navLink}>Services</Link>
+          <Link to="/shop" className={navLink}>Everything</Link>
+          {!user && <Link to="/supplier-rules" className={`${navLink} text-gold-deep`}>Sell on Zolara</Link>}
+        </div>
+      </nav>
     </header>
   )
 }
