@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import FavouriteButton from '../components/FavouriteButton.jsx'
@@ -23,17 +23,25 @@ function toCents(value) {
 }
 
 export default function Shop() {
+  const [params] = useSearchParams()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [type, setType] = useState('all')
-  const [category, setCategory] = useState('')
+  const [type, setType] = useState(params.get('type') || 'all')
+  const [category, setCategory] = useState(params.get('category') || '')
   const [subcategory, setSubcategory] = useState('')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(params.get('q') || '')
   const [province, setProvince] = useState('')
   const [city, setCity] = useState('')
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState('featured')
+
+  useEffect(() => {
+    setType(params.get('type') || 'all')
+    setCategory(params.get('category') || '')
+    setSubcategory('')
+    setSearch(params.get('q') || '')
+  }, [params])
 
   useEffect(() => {
     getDocs(
