@@ -1,8 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { mainCategories, subCategories, formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
+import {
+  mainCategories, subCategories, formatZAR, PREFERRED_LABEL, PROVINCES,
+} from '../lib/constants.js'
+
+const SORTS = [
+  ['featured', 'Featured'],
+  ['newest', 'Newest'],
+  ['price_asc', 'Price: low to high'],
+  ['price_desc', 'Price: high to low'],
+]
+
+const select = 'rounded-full border border-gold/50 bg-white px-4 py-2 text-sm'
+const cityKey = (c) => String(c || '').trim().toLowerCase()
+
+function toCents(value) {
+  const n = parseFloat(value)
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null
+}
 
 export default function Shop() {
   const [listings, setListings] = useState([])
@@ -11,6 +28,11 @@ export default function Shop() {
   const [category, setCategory] = useState('')
   const [subcategory, setSubcategory] = useState('')
   const [search, setSearch] = useState('')
+  const [province, setProvince] = useState('')
+  const [city, setCity] = useState('')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [sort, setSort] = useState('featured')
 
   useEffect(() => {
     getDocs(
@@ -35,18 +57,62 @@ export default function Shop() {
   const mains = mainCategories(type)
   const subs = category ? subCategories(category, type) : []
 
-  const shown = listings.filter((l) =>
-    (type === 'all' || l.type === type) &&
-    (!category || l.category === category) &&
-    (!subcategory || l.subcategory === subcategory) &&
-    (!search || `${l.title} ${l.sellerName}`.toLowerCase().includes(search.toLowerCase()))
-  )
+  const cities = useMemo(() => {
+    const map = new Map()
+    listings
+      .filter((l) => !province || l.province === province)
+      .forEach((l) => {
+        const key = cityKey(l.city)
+        if (key && !map.has(key)) map.set(key, String(l.city).trim())
+      })
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [listings, province])
+
+  const shown = useMemo(() => {
+    const min = toCents(minPrice)
+    const max = toCents(maxPrice)
+    const needle = search.trim().toLowerCase()
+    const items = listings.filter((l) =>
+      (type === 'all' || l.type === type) &&
+      (!category || l.category === category) &&
+      (!subcategory || l.subcategory === subcategory) &&
+      (!province || l.province === province) &&
+      (!city || cityKey(l.city) === city) &&
+      (min === null || l.priceCents >= min) &&
+      (max === null || l.priceCents <= max) &&
+      (!needle ||
+        `${l.title} ${l.sellerName} ${l.category} ${l.subcategory} ${l.city}`.toLowerCase().includes(needle))
+    )
+    if (sort === 'newest') {
+      items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+    } else if (sort === 'price_asc') {
+      items.sort((a, b) => a.priceCents - b.priceCents)
+    } else if (sort === 'price_desc') {
+      items.sort((a, b) => b.priceCents - a.priceCents)
+    }
+    return items
+  }, [listings, type, category, subcategory, province, city, minPrice, maxPrice, search, sort])
+
+  const filtered =
+    type !== 'all' || category || subcategory || province || city || minPrice || maxPrice || search
+
+  function clearAll() {
+    setType('all')
+    setCategory('')
+    setSubcategory('')
+    setProvince('')
+    setCity('')
+    setMinPrice('')
+    setMaxPrice('')
+    setSearch('')
+    setSort('featured')
+  }
 
   return (
     <main className="mx-auto max-w-5xl p-6">
       <h1 className="mb-4 text-2xl font-semibold text-emerald-brand">Shop local</h1>
 
-      <div className="mb-6 flex flex-wrap gap-3">
+      <div className="mb-3 flex flex-wrap gap-3">
         {[['all', 'Everything'], ['product', 'Products'], ['service', 'Services']].map(([v, label]) => (
           <button key={v} onClick={() => { setType(v); setCategory(''); setSubcategory('') }}
             className={`rounded-full px-4 py-2 text-sm ${
@@ -55,13 +121,12 @@ export default function Shop() {
           </button>
         ))}
         <select value={category} onChange={(e) => { setCategory(e.target.value); setSubcategory('') }}
-          className="rounded-full border border-gold/50 bg-white px-4 py-2 text-sm">
+          className={select}>
           <option value="">All categories</option>
           {mains.map((c) => <option key={c}>{c}</option>)}
         </select>
         {category && (
-          <select value={subcategory} onChange={(e) => setSubcategory(e.target.value)}
-            className="rounded-full border border-gold/50 bg-white px-4 py-2 text-sm">
+          <select value={subcategory} onChange={(e) => setSubcategory(e.target.value)} className={select}>
             <option value="">All in {category}</option>
             {subs.map((s) => <option key={s}>{s}</option>)}
           </select>
@@ -70,8 +135,35 @@ export default function Shop() {
           className="flex-1 rounded-full border border-gold/50 bg-white px-4 py-2 text-sm" />
       </div>
 
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <select value={province} onChange={(e) => { setProvince(e.target.value); setCity('') }}
+          className={select}>
+          <option value="">All provinces</option>
+          {PROVINCES.map((p) => <option key={p}>{p}</option>)}
+        </select>
+        <select value={city} onChange={(e) => setCity(e.target.value)} className={select}>
+          <option value="">All cities</option>
+          {cities.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <input type="number" min="0" inputMode="decimal" placeholder="Min R" value={minPrice}
+          onChange={(e) => setMinPrice(e.target.value)} className={`${select} w-24`} />
+        <input type="number" min="0" inputMode="decimal" placeholder="Max R" value={maxPrice}
+          onChange={(e) => setMaxPrice(e.target.value)} className={`${select} w-24`} />
+        <select value={sort} onChange={(e) => setSort(e.target.value)} className={select}>
+          {SORTS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+        </select>
+        {filtered && (
+          <button onClick={clearAll} className="text-sm text-gold-deep underline">Clear filters</button>
+        )}
+      </div>
+
       {loading && <p>Loading…</p>}
-      {!loading && shown.length === 0 && <p>Nothing here yet. Check back soon.</p>}
+      {!loading && shown.length === 0 && (
+        <p>{filtered ? 'Nothing matches these filters. Try widening them.' : 'Nothing here yet. Check back soon.'}</p>
+      )}
+      {!loading && shown.length > 0 && (
+        <p className="mb-3 text-xs text-gold-deep">{shown.length} {shown.length === 1 ? 'result' : 'results'}</p>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {shown.map((l) => (

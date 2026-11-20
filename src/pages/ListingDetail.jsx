@@ -82,7 +82,7 @@ export default function ListingDetail() {
           <Link to={`/supplier/${listing.sellerId}`} className="text-emerald-brand underline">
             {listing.sellerName}
           </Link>
-          , {listing.city}
+          , {listing.city}{listing.province ? `, ${listing.province}` : ''}
         </p>
         {isService ? (
           isOwner ? (

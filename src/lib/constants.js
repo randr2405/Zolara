@@ -147,6 +147,18 @@ export const CATALOG = [
   },
 ]
 
+export const PROVINCES = [
+  'Eastern Cape',
+  'Free State',
+  'Gauteng',
+  'KwaZulu-Natal',
+  'Limpopo',
+  'Mpumalanga',
+  'Northern Cape',
+  'North West',
+  'Western Cape',
+]
+
 export const PREFERRED_LABEL = 'Founder & preferred supplier'
 
 export const mainCategories = (type) =>

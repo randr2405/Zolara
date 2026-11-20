@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { deleteField, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import {
+  collection, deleteField, doc, getDoc, getDocs, query, setDoc, serverTimestamp, updateDoc, where,
+} from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { resizeImage } from '../lib/images'
+import { PROVINCES } from '../lib/constants.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
@@ -14,6 +17,7 @@ export default function SellerProfileForm({ seller, onDone }) {
     businessName: seller?.businessName || '',
     description: seller?.description || '',
     city: seller?.city || '',
+    province: seller?.province || '',
     phone: legacyPhone,
   })
   const [app, setApp] = useState({ registrationNumber: '', references: '', examples: '' })
@@ -43,6 +47,7 @@ export default function SellerProfileForm({ seller, onDone }) {
         businessName: form.businessName,
         description: form.description,
         city: form.city,
+        province: form.province,
         phone: deleteField(),
       }
       if (logo) data.logoUrl = await resizeImage(logo, 200, 0.8)
@@ -54,6 +59,16 @@ export default function SellerProfileForm({ seller, onDone }) {
         data.rulesVersion = '1.0'
       }
       await setDoc(doc(db, 'sellers', user.uid), data, { merge: true })
+      if (seller) {
+        try {
+          const mine = await getDocs(query(collection(db, 'listings'), where('sellerId', '==', user.uid)))
+          await Promise.all(
+            mine.docs.map((d) => updateDoc(d.ref, { city: form.city, province: form.province }))
+          )
+        } catch (err) {
+          console.error(err)
+        }
+      }
       if (!seller) {
         await setDoc(doc(db, 'applications', user.uid), {
           ...app,
@@ -80,6 +95,10 @@ export default function SellerProfileForm({ seller, onDone }) {
         value={form.description} onChange={set('description')} className={input} />
       <input required placeholder="City or town (e.g. Durban)" value={form.city}
         onChange={set('city')} className={input} />
+      <select required value={form.province} onChange={set('province')} className={input}>
+        <option value="">Choose your province</option>
+        {PROVINCES.map((p) => <option key={p}>{p}</option>)}
+      </select>
       <div>
         <input required placeholder="Contact phone number" value={form.phone}
           onChange={set('phone')} className={`${input} w-full`} />

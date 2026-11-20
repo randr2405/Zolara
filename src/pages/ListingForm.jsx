@@ -85,6 +85,7 @@ export default function ListingForm() {
         sellerId: user.uid,
         sellerName: seller.businessName,
         city: seller.city,
+        province: seller.province || '',
       }
 
       let listingId = id
