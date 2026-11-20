@@ -7,6 +7,7 @@
   --color-cream: #FAF6EE;
   --color-charcoal: #2B2B2B;
   --color-action: #1E8E5A;
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
 }
 
 body {
@@ -14,4 +15,8 @@ body {
   background: var(--color-cream);
   color: var(--color-charcoal);
   font-family: system-ui, sans-serif;
+}
+
+summary::-webkit-details-marker {
+  display: none;
 }

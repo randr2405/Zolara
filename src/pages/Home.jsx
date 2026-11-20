@@ -2,31 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, limit, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { CATALOG } from '../lib/constants.js'
+import { CATALOG, formatZAR } from '../lib/constants.js'
 import ListingCard from '../components/ListingCard.jsx'
 
-const ICONS = {
-  'Automotive': '🚗',
-  'Beauty & Hair': '💇',
-  'Clothing': '👗',
-  'Food & Drink': '🍞',
-  'Home & Living': '🏡',
-  'Electronics': '📱',
-  'IT & Digital Services': '💻',
-  'Printing, Embroidery & Branding': '🖨️',
-  'Events': '🎉',
-  'Photography & Video': '📷',
-  'Gifts': '🎁',
-  'Education': '📚',
-  'Pets': '🐾',
-  'Other': '✨',
-}
-
 const TRUST = [
-  ['Pay only after they accept', 'No money moves until the supplier confirms your order or booking.'],
-  ['Secure PayFast checkout', 'Card and bank details never touch Zolara.'],
-  ['Reviewed suppliers', 'Every supplier is checked before their listings go live.'],
-  ['Local, every time', 'South African businesses, in your province and beyond.'],
+  ['You pay after they accept', 'Nothing is charged until the supplier confirms your order or booking.'],
+  ['Paid through PayFast', 'Your card and bank details are never seen or stored by Zolara.'],
+  ['Suppliers are reviewed', 'Every business is checked before its listings go live.'],
 ]
 
 const newest = (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
@@ -44,26 +26,31 @@ async function load(type) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(newest)
 }
 
-function Rail({ title, subtitle, to, items, loading }) {
-  if (!loading && items.length === 0) return null
+function availability(cat) {
+  const types = new Set(cat.subs.map((s) => s.type))
+  if (types.size === 2) return 'Products and services'
+  return types.has('product') ? 'Products' : 'Services'
+}
+
+function Wave({ flip = false }) {
   return (
-    <section className="mx-auto mt-10 max-w-7xl px-4">
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-2xl font-semibold text-emerald-brand">{title}</h2>
-          {subtitle && <p className="text-sm text-gold-deep">{subtitle}</p>}
-        </div>
-        <Link to={to} className="shrink-0 text-sm font-medium text-emerald-brand underline">See all</Link>
+    <svg viewBox="0 0 1440 120" preserveAspectRatio="none"
+      className={`block h-14 w-full sm:h-24 ${flip ? 'rotate-180' : ''}`} aria-hidden="true">
+      <path d="M0 70 C 240 10, 480 120, 760 70 S 1200 20, 1440 60 L1440 120 L0 120 Z" fill="#0B3D2E" />
+      <path d="M0 70 C 240 10, 480 120, 760 70 S 1200 20, 1440 60" fill="none" stroke="#C9A24B"
+        strokeWidth="3" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+function Section({ title, to, children }) {
+  return (
+    <section className="mx-auto mt-16 max-w-7xl px-4">
+      <div className="mb-6 flex items-baseline justify-between gap-4 border-b border-gold/50 pb-3">
+        <h2 className="font-display text-4xl font-semibold text-emerald-brand">{title}</h2>
+        <Link to={to} className="text-sm text-emerald-brand underline">See all</Link>
       </div>
-      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3">
-        {loading
-          ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-72 w-44 shrink-0 animate-pulse rounded-lg bg-white sm:w-52" />
-            ))
-          : items.slice(0, 12).map((l) => (
-              <ListingCard key={l.id} listing={l} className="w-44 shrink-0 snap-start sm:w-52" />
-            ))}
-      </div>
+      {children}
     </section>
   )
 }
@@ -84,87 +71,103 @@ export default function Home() {
     return () => { alive = false }
   }, [])
 
-  const preferred = [...products, ...services].filter((l) => l.sellerPreferred).sort(newest)
+  const windows = [...products, ...services].filter((l) => l.thumb).sort(newest).slice(0, 3)
+  const frames = [0, 1, 2].map((i) => windows[i] || null)
 
   return (
-    <main className="pb-6">
-      <section className="mx-auto grid max-w-7xl gap-3 px-4 pt-4 lg:grid-cols-3">
-        <div className="relative overflow-hidden rounded-2xl bg-emerald-brand p-8 text-cream lg:col-span-2 lg:p-12">
-          <svg viewBox="0 0 400 300" className="pointer-events-none absolute -right-10 -top-6 h-full w-3/5 opacity-30" aria-hidden="true">
-            <path d="M0 260 C 120 240, 200 150, 400 40 C 300 170, 180 290, 0 300 Z" fill="#C9A24B" />
-            <path d="M40 300 C 160 270, 260 200, 400 150 C 320 250, 200 310, 40 300 Z" fill="#FAF6EE" opacity="0.4" />
-          </svg>
-          <div className="relative max-w-lg">
-            <p className="mb-3 text-sm text-gold">Support local businesses, don’t kill them.</p>
-            <h1 className="font-serif text-4xl font-semibold leading-tight sm:text-5xl">Shop it. Book it. Love it.</h1>
-            <p className="mt-4 text-base text-cream/90">
-              One calm, trusted place to buy products and book services from local South Africans.
+    <main>
+      <section className="bg-cream">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-6 pt-12 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
+          <div>
+            <h1 className="font-display text-7xl font-semibold leading-[0.9] text-emerald-brand sm:text-9xl">
+              <Link to="/shop?type=product" className="block transition hover:text-gold-deep">Shop it.</Link>
+              <Link to="/shop?type=service" className="block transition hover:text-gold-deep">Book it.</Link>
+              <Link to="/shop" className="block transition hover:text-gold-deep">Love it.</Link>
+            </h1>
+            <p className="mt-8 max-w-md text-lg">
+              A calm, trusted place to buy and book from local South Africans.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/shop?type=product" className="rounded-full bg-gold px-6 py-3 font-medium text-emerald-brand">Shop products</Link>
-              <Link to="/shop?type=service" className="rounded-full border border-gold px-6 py-3 font-medium text-gold">Book a service</Link>
+              <Link to="/shop?type=product" className="rounded-full bg-emerald-brand px-7 py-3 text-cream">Browse products</Link>
+              <Link to="/shop?type=service" className="rounded-full border border-emerald-brand px-7 py-3 text-emerald-brand">Find a service</Link>
             </div>
           </div>
+
+          <div className="grid grid-cols-3 items-end gap-3">
+            {frames.map((l, i) => {
+              const frame = (
+                <>
+                  <div className="aspect-[3/5] overflow-hidden rounded-t-full bg-emerald-brand ring-1 ring-gold">
+                    {l && <img src={l.thumb} alt={l.title} className="h-full w-full object-cover" />}
+                  </div>
+                  {l && (
+                    <>
+                      <p className="mt-2 truncate text-sm">{l.title}</p>
+                      <p className="font-display text-lg font-semibold text-emerald-brand">{formatZAR(l.priceCents)}</p>
+                    </>
+                  )}
+                </>
+              )
+              const lift = i === 1 ? 'lg:-translate-y-8' : ''
+              return l
+                ? <Link key={l.id} to={`/listing/${l.id}`} className={lift}>{frame}</Link>
+                : <div key={i} className={lift}>{frame}</div>
+            })}
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-          <Link to="/shop?type=product" className="flex flex-col justify-between rounded-2xl border border-gold/50 bg-white p-5">
-            <span className="text-3xl" aria-hidden="true">🛍️</span>
-            <span>
-              <span className="block font-serif text-xl font-semibold text-emerald-brand">Shop it</span>
-              <span className="text-sm">Products from local sellers</span>
-            </span>
-          </Link>
-          <Link to="/shop?type=service" className="flex flex-col justify-between rounded-2xl border border-gold/50 bg-white p-5">
-            <span className="text-3xl" aria-hidden="true">📅</span>
-            <span>
-              <span className="block font-serif text-xl font-semibold text-emerald-brand">Book it</span>
-              <span className="text-sm">Trusted local service providers</span>
-            </span>
-          </Link>
-        </div>
+        <Wave />
       </section>
 
-      <section className="mx-auto mt-8 max-w-7xl px-4">
-        <h2 className="mb-3 font-serif text-2xl font-semibold text-emerald-brand">Shop by category</h2>
-        <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible lg:grid-cols-7">
-          {CATALOG.map((c) => (
-            <Link key={c.name} to={`/shop?category=${encodeURIComponent(c.name)}`}
-              className="flex w-24 shrink-0 flex-col items-center gap-2 text-center sm:w-auto">
-              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-3xl ring-2 ring-gold/40">
-                {ICONS[c.name] || '✨'}
-              </span>
-              <span className="text-xs font-medium leading-tight">{c.name}</span>
-            </Link>
-          ))}
+      <section className="bg-emerald-brand text-cream">
+        <div className="mx-auto max-w-7xl px-4 pb-4">
+          <h2 className="font-display text-4xl font-semibold text-gold">Departments</h2>
+          <div className="mt-6 grid gap-x-12 sm:grid-cols-2 lg:grid-cols-3">
+            {CATALOG.map((c) => (
+              <Link key={c.name} to={`/shop?category=${encodeURIComponent(c.name)}`}
+                className="group flex items-baseline justify-between gap-3 border-b border-gold/30 py-3 transition hover:border-gold">
+                <span className="font-display text-2xl group-hover:text-gold">{c.name}</span>
+                <span className="shrink-0 text-xs text-cream/70">{availability(c)}</span>
+              </Link>
+            ))}
+          </div>
         </div>
+        <Wave flip />
       </section>
 
-      <Rail title="New products" subtitle="Fresh from local sellers" to="/shop?type=product" items={products} loading={loading} />
-      <Rail title="Book a local service" subtitle="Reliable people near you" to="/shop?type=service" items={services} loading={loading} />
-      {!loading && preferred.length > 0 && (
-        <Rail title="Founder and preferred suppliers" to="/shop" items={preferred} loading={false} />
-      )}
+      <Section title="Just listed" to="/shop?type=product">
+        {loading && <p className="text-sm">Loading…</p>}
+        {!loading && products.length === 0 && <p className="text-sm">New products are on their way.</p>}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
+          {products.slice(0, 8).map((l) => <ListingCard key={l.id} listing={l} />)}
+        </div>
+      </Section>
 
-      <section className="mx-auto mt-10 grid max-w-7xl gap-3 px-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Section title="Ready to book" to="/shop?type=service">
+        {loading && <p className="text-sm">Loading…</p>}
+        {!loading && services.length === 0 && <p className="text-sm">New services are on their way.</p>}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
+          {services.slice(0, 4).map((l) => <ListingCard key={l.id} listing={l} />)}
+        </div>
+      </Section>
+
+      <section className="mx-auto mt-20 grid max-w-7xl gap-8 px-4 md:grid-cols-3">
         {TRUST.map(([title, text]) => (
-          <div key={title} className="rounded-xl border border-gold/40 bg-white p-4">
-            <p className="font-medium text-emerald-brand">{title}</p>
+          <div key={title} className="border-l-2 border-gold pl-4">
+            <p className="font-display text-2xl font-semibold text-emerald-brand">{title}</p>
             <p className="mt-1 text-sm">{text}</p>
           </div>
         ))}
       </section>
 
-      <section className="mx-auto mt-10 max-w-7xl px-4">
-        <div className="flex flex-col items-start justify-between gap-4 rounded-2xl bg-emerald-brand p-8 text-cream sm:flex-row sm:items-center">
-          <div>
-            <h2 className="font-serif text-2xl font-semibold">List it on Zolara</h2>
-            <p className="mt-1 max-w-xl text-sm text-cream/90">
-              Get found and paid without building your own website. Your first 3 months are free, and we take no commission on your sales.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/signup" className="rounded-full bg-gold px-6 py-3 font-medium text-emerald-brand">Start selling</Link>
-            <Link to="/supplier-rules" className="rounded-full border border-gold px-6 py-3 font-medium text-gold">Read the supplier rules</Link>
+      <section className="mx-auto mt-20 max-w-7xl px-4">
+        <div className="border-y border-gold py-12 text-center">
+          <h2 className="font-display text-5xl font-semibold text-emerald-brand">Sell on Zolara</h2>
+          <p className="mx-auto mt-3 max-w-xl">
+            Get found and paid without building your own website. Your first 3 months are free, and we take no commission on your sales.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link to="/signup" className="rounded-full bg-emerald-brand px-7 py-3 text-cream">Start selling</Link>
+            <Link to="/supplier-rules" className="rounded-full border border-emerald-brand px-7 py-3 text-emerald-brand">Read the supplier rules</Link>
           </div>
         </div>
       </section>

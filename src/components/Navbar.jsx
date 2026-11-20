@@ -6,6 +6,7 @@ import { mainCategories } from '../lib/constants.js'
 import logo from '../assets/zolara-logo.png'
 
 const item = 'block rounded px-3 py-2 text-sm hover:bg-cream'
+const trigger = 'cursor-pointer list-none text-sm text-emerald-brand hover:text-gold-deep'
 
 function Heart() {
   return (
@@ -15,17 +16,28 @@ function Heart() {
   )
 }
 
+function Glass() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </svg>
+  )
+}
+
 export default function Navbar() {
   const { user, profile, logout } = useAuth()
   const isAdmin = useIsAdmin()
   const navigate = useNavigate()
   const [q, setQ] = useState('')
-  const menu = useRef(null)
+  const dept = useRef(null)
+  const acct = useRef(null)
   const isSeller = profile?.role === 'seller'
   const firstName = (profile?.displayName || 'Account').split(' ')[0]
 
-  const close = () => {
-    if (menu.current) menu.current.open = false
+  const closeAll = () => {
+    if (dept.current) dept.current.open = false
+    if (acct.current) acct.current.open = false
   }
 
   function search(e) {
@@ -35,34 +47,41 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white shadow-sm">
-      <div className="bg-emerald-brand px-4 py-1.5 text-xs text-cream">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <p className="text-gold">Support local businesses, don’t kill them.</p>
-          {!user && <Link to="/supplier-rules" className="text-cream underline">Sell on Zolara</Link>}
-        </div>
-      </div>
+    <header className="sticky top-0 z-40 border-b-2 border-gold bg-cream/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+        <Link to="/" className="shrink-0"><img src={logo} alt="Zolara" className="h-11" /></Link>
 
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-        <Link to="/" className="shrink-0"><img src={logo} alt="Zolara" className="h-10" /></Link>
+        <nav className="flex items-center gap-5">
+          <Link to="/shop?type=product" className={trigger}>Shop</Link>
+          <Link to="/shop?type=service" className={trigger}>Book</Link>
+          <details ref={dept} className="relative">
+            <summary className={trigger}>Departments</summary>
+            <div onClick={closeAll}
+              className="absolute left-0 mt-3 grid w-[min(90vw,34rem)] gap-x-6 rounded-lg bg-white p-4 shadow-lg ring-1 ring-gold/50 sm:grid-cols-2">
+              {mainCategories('all').map((c) => (
+                <Link key={c} to={`/shop?category=${encodeURIComponent(c)}`}
+                  className="border-b border-gold/20 py-2 font-display text-lg hover:text-gold-deep">{c}</Link>
+              ))}
+            </div>
+          </details>
+          {!user && <Link to="/supplier-rules" className={trigger}>Sell</Link>}
+        </nav>
 
-        <form onSubmit={search} className="order-3 flex w-full flex-1 md:order-none md:w-auto" role="search">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products and services"
+        <form onSubmit={search} role="search" className="order-last flex w-full items-center border-b border-gold-deep md:order-none md:ml-auto md:w-72">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Zolara"
             aria-label="Search products and services"
-            className="min-w-0 flex-1 rounded-l-full border border-gold/60 bg-cream px-4 py-2 text-sm outline-none focus:border-emerald-brand" />
-          <button className="rounded-r-full bg-emerald-brand px-5 text-sm font-medium text-cream">Search</button>
+            className="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-sm outline-none" />
+          <button aria-label="Search" className="px-1 text-emerald-brand"><Glass /></button>
         </form>
 
-        <div className="ml-auto flex items-center gap-3 md:ml-0">
+        <div className="ml-auto flex items-center gap-4 md:ml-0">
           {user && !isSeller && (
             <Link to="/favourites" aria-label="Favourites" title="Favourites" className="text-gold-deep"><Heart /></Link>
           )}
           {user ? (
-            <details ref={menu} className="relative">
-              <summary className="cursor-pointer list-none rounded-full border border-gold-deep px-4 py-2 text-sm text-emerald-brand">
-                Hi, {firstName}
-              </summary>
-              <div onClick={close} className="absolute right-0 mt-2 w-52 rounded-lg bg-white p-2 shadow-lg ring-1 ring-gold/40">
+            <details ref={acct} className="relative">
+              <summary className={trigger}>{firstName}</summary>
+              <div onClick={closeAll} className="absolute right-0 mt-3 w-52 rounded-lg bg-white p-2 shadow-lg ring-1 ring-gold/50">
                 {isAdmin && (
                   <>
                     <Link to="/admin" className={`${item} font-medium text-gold-deep`}>Admin</Link>
@@ -89,22 +108,12 @@ export default function Navbar() {
             </details>
           ) : (
             <>
-              <Link to="/login" className="text-sm text-emerald-brand">Log in</Link>
-              <Link to="/signup" className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Sign up</Link>
+              <Link to="/login" className={trigger}>Log in</Link>
+              <Link to="/signup" className="rounded-full bg-emerald-brand px-5 py-2 text-sm text-cream">Sign up</Link>
             </>
           )}
         </div>
       </div>
-
-      <nav className="border-t border-gold/30 bg-cream">
-        <div className="mx-auto flex max-w-7xl gap-5 overflow-x-auto whitespace-nowrap px-4 py-2 text-sm">
-          <Link to="/shop?type=product" className="font-medium text-emerald-brand">Products</Link>
-          <Link to="/shop?type=service" className="font-medium text-emerald-brand">Services</Link>
-          {mainCategories('all').map((c) => (
-            <Link key={c} to={`/shop?category=${encodeURIComponent(c)}`} className="text-charcoal hover:text-emerald-brand">{c}</Link>
-          ))}
-        </div>
-      </nav>
     </header>
   )
 }
