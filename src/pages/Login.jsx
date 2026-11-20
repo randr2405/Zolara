@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import AuthLayout, { Field, PasswordInput, field } from '../components/AuthLayout.jsx'
+
+const POINTS = [
+  ['Pay after they accept', 'Nothing is charged until the supplier confirms.'],
+  ['Secure PayFast checkout', 'We never see or store your card details.'],
+  ['Reviewed local suppliers', 'Every business is checked before going live.'],
+]
 
 export default function Login() {
   const { login } = useAuth()
@@ -25,27 +32,36 @@ export default function Login() {
   }
 
   return (
-    <main className="mx-auto max-w-md p-6">
-      <h1 className="mb-6 text-2xl font-semibold text-emerald-brand">Welcome back</h1>
+    <AuthLayout
+      heading="Welcome back"
+      subheading="Log in to see your bookings, orders and favourites."
+      points={POINTS}
+      tags={['Local', 'Trusted', 'Calm']}
+      footer={
+        <p>
+          New to Zolara?{' '}
+          <Link to="/signup" className="font-medium text-emerald-brand underline">Create an account</Link>
+        </p>
+      }
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <input required type="email" placeholder="Email" value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-lg border border-gold/50 bg-white p-3" />
-        <input required type="password" placeholder="Password" value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-lg border border-gold/50 bg-white p-3" />
-        {error && <p className="text-sm text-red-700">{error}</p>}
+        <Field label="Email">
+          <input required type="email" autoComplete="email" placeholder="you@example.com" value={email}
+            onChange={(e) => setEmail(e.target.value)} className={field} />
+        </Field>
+        <Field label="Password">
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)}
+            placeholder="Your password" autoComplete="current-password" />
+        </Field>
+        <p className="-mt-2 text-right text-sm">
+          <Link to="/forgot-password" className="text-emerald-brand underline">Forgot your password?</Link>
+        </p>
+        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
         <button disabled={busy}
-          className="rounded-full bg-emerald-brand px-6 py-3 text-cream disabled:opacity-60">
+          className="rounded-full bg-emerald-brand px-6 py-3 font-medium text-cream shadow-md transition hover:-translate-y-0.5 disabled:opacity-60">
           {busy ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <p className="mt-4 text-sm">
-        <Link to="/forgot-password" className="text-emerald-brand underline">Forgot your password?</Link>
-      </p>
-      <p className="mt-2 text-sm">
-        New to Zolara? <Link to="/signup" className="text-emerald-brand underline">Create an account</Link>
-      </p>
-    </main>
+    </AuthLayout>
   )
 }
