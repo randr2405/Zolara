@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
+import { summarize } from '../lib/ratings.js'
+import RatingBadge from '../components/RatingBadge.jsx'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -11,6 +13,8 @@ export default function ListingDetail() {
   const [listing, setListing] = useState(undefined)
   const [photos, setPhotos] = useState([])
   const [active, setActive] = useState(0)
+  const [itemRating, setItemRating] = useState(summarize([]))
+  const [sellerRating, setSellerRating] = useState(summarize([]))
 
   useEffect(() => {
     async function load() {
@@ -20,6 +24,13 @@ export default function ListingDetail() {
         setListing(s.data())
         const ph = await getDocs(query(collection(db, 'listings', id, 'photos'), orderBy('order')))
         setPhotos(ph.docs.map((p) => p.data().data))
+        const empty = { docs: [] }
+        const [lr, sr] = await Promise.all([
+          getDocs(query(collection(db, 'reviews'), where('listingId', '==', id))).catch(() => empty),
+          getDocs(query(collection(db, 'reviews'), where('sellerId', '==', s.data().sellerId))).catch(() => empty),
+        ])
+        setItemRating(summarize(lr.docs.map((d) => d.data())))
+        setSellerRating(summarize(sr.docs.map((d) => d.data())))
       } catch {
         setListing(null)
       }
@@ -61,6 +72,10 @@ export default function ListingDetail() {
             {PREFERRED_LABEL}
           </p>
         )}
+        <div className="mb-4 flex flex-col gap-1 text-sm">
+          <RatingBadge rating={itemRating} subject={isService ? 'This service' : 'This product'} />
+          <RatingBadge rating={sellerRating} subject="Supplier" />
+        </div>
         <p className="mb-6 text-sm">
           {isService ? `${listing.durationMinutes} minutes` : `${listing.stock} in stock`} ·
           Sold by{' '}

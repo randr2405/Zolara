@@ -3,8 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
-
-const MIN_REVIEWS = 5
+import { MIN_REVIEWS, summarize } from '../lib/ratings.js'
+import RatingBadge from '../components/RatingBadge.jsx'
 
 const statusOf = (s) => s.status || (s.verified ? 'approved' : 'pending')
 
@@ -53,9 +53,7 @@ export default function Supplier() {
   if (seller === undefined) return <p className="p-6 text-center">Loading…</p>
   if (seller === null) return <p className="p-6 text-center">This supplier isn’t available.</p>
 
-  const total = reviews.length
-  const happy = reviews.filter((r) => r.satisfied).length
-  const score = total >= MIN_REVIEWS ? Math.round((happy / total) * 100) : null
+  const rating = summarize(reviews)
 
   return (
     <main className="mx-auto max-w-5xl p-6">
@@ -72,21 +70,7 @@ export default function Supplier() {
             </p>
           )}
         </div>
-        <div className="rounded-xl bg-white px-5 py-3 text-center">
-          {score !== null ? (
-            <>
-              <p className="text-2xl font-semibold text-emerald-brand">{score}% satisfied</p>
-              <p className="text-xs text-gold-deep">{total} customer reviews</p>
-            </>
-          ) : (
-            <>
-              <p className="text-lg font-semibold text-emerald-brand">New supplier</p>
-              <p className="text-xs text-gold-deep">
-                {total > 0 ? `${total} ${total === 1 ? 'review' : 'reviews'} so far` : 'No reviews yet'}
-              </p>
-            </>
-          )}
-        </div>
+        <RatingBadge rating={rating} large />
       </div>
 
       {seller.description && <p className="mb-8 max-w-2xl whitespace-pre-line">{seller.description}</p>}

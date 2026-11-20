@@ -38,6 +38,7 @@ function FeedbackForm({ booking, user }) {
       })
       batch.set(doc(db, 'reviews', booking.id), {
         sellerId: booking.sellerId,
+        listingId: booking.listingId,
         satisfied,
         listingTitle: booking.listingTitle,
         kind: 'booking',
