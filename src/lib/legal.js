@@ -113,6 +113,7 @@ export const PRIVACY = {
         'Bookings and orders: your name, email, phone number, delivery address or service location, the date and time, and any notes you add.',
         'Payment records: the amount, status and PayFast reference of each payment, and the fee charged. Card and bank details are entered on PayFast and are not seen or stored by Zolara.',
         'Feedback: whether you were satisfied and any comment you leave.',
+        'Favourites: the listings you save to your favourites. Only you can see them.',
         'Basic technical data and browser storage that keeps you logged in and keeps the site working.',
       ],
     },

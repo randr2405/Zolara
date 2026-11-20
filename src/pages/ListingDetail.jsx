@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
+import FavouriteButton from '../components/FavouriteButton.jsx'
 import { formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
 import { summarize } from '../lib/ratings.js'
 import RatingBadge from '../components/RatingBadge.jsx'
@@ -84,6 +85,9 @@ export default function ListingDetail() {
           </Link>
           , {listing.city}{listing.province ? `, ${listing.province}` : ''}
         </p>
+        <div className="mb-4">
+          <FavouriteButton listingId={id} label />
+        </div>
         {isService ? (
           isOwner ? (
             <p className="text-sm">This is your own service.</p>

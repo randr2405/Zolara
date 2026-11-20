@@ -30,6 +30,7 @@ export default function Navbar() {
               <>
                 <Link to="/my-bookings" className="text-emerald-brand">My bookings</Link>
                 <Link to="/my-orders" className="text-emerald-brand">My orders</Link>
+                <Link to="/favourites" className="text-emerald-brand">Favourites</Link>
               </>
             )}
             <Link to="/account" className="text-emerald-brand">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import FavouriteButton from '../components/FavouriteButton.jsx'
 import {
   mainCategories, subCategories, formatZAR, PREFERRED_LABEL, PROVINCES,
 } from '../lib/constants.js'
@@ -167,7 +168,8 @@ export default function Shop() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {shown.map((l) => (
-          <div key={l.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
+          <div key={l.id} className="relative overflow-hidden rounded-xl bg-white shadow-sm">
+            <FavouriteButton listingId={l.id} className="absolute right-2 top-2" />
             <Link to={`/listing/${l.id}`}>
               {l.thumb
                 ? <img src={l.thumb} alt={l.title} className="aspect-square w-full object-cover" />

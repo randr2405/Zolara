@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import FavouriteButton from '../components/FavouriteButton.jsx'
 import { formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
 import { MIN_REVIEWS, summarize } from '../lib/ratings.js'
 import RatingBadge from '../components/RatingBadge.jsx'
@@ -80,7 +81,8 @@ export default function Supplier() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {listings.map((l) => (
-          <Link key={l.id} to={`/listing/${l.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
+          <Link key={l.id} to={`/listing/${l.id}`} className="relative overflow-hidden rounded-xl bg-white shadow-sm">
+            <FavouriteButton listingId={l.id} className="absolute right-2 top-2" />
             {l.thumb
               ? <img src={l.thumb} alt={l.title} className="aspect-square w-full object-cover" />
               : <div className="aspect-square w-full bg-cream" />}

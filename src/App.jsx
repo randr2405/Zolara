@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { FavouritesProvider } from './context/FavouritesContext.jsx'
 import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -28,46 +29,50 @@ import NotFound from './pages/NotFound.jsx'
 import SellerPayments from './pages/SellerPayments.jsx'
 import AdminReports from './pages/AdminReports.jsx'
 import AdminRefunds from './pages/AdminRefunds.jsx'
+import Favourites from './pages/Favourites.jsx'
 import PaymentResult from './pages/PaymentResult.jsx'
 
 export default function App() {
   return (
     <AuthProvider>
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <div className="flex-1">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/supplier/:id" element={<Supplier />} />
-            <Route path="/listing/:id" element={<ListingDetail />} />
-            <Route path="/listing/:id/book" element={<ProtectedRoute><BookingForm /></ProtectedRoute>} />
-            <Route path="/listing/:id/buy" element={<ProtectedRoute><OrderForm /></ProtectedRoute>} />
-            <Route path="/supplier-rules" element={<SupplierRules />} />
-            <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
-            <Route path="/my-bookings" element={<ProtectedRoute><MyBookings /></ProtectedRoute>} />
-            <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
-            <Route path="/payment/success" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
-            <Route path="/payment/cancelled" element={<ProtectedRoute><PaymentResult cancelled /></ProtectedRoute>} />
-            <Route path="/seller" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
-            <Route path="/seller/bookings" element={<ProtectedRoute role="seller"><SellerBookings /></ProtectedRoute>} />
-            <Route path="/seller/payments" element={<ProtectedRoute role="seller"><SellerPayments /></ProtectedRoute>} />
-            <Route path="/seller/orders" element={<ProtectedRoute role="seller"><SellerOrders /></ProtectedRoute>} />
-            <Route path="/seller/listings/new" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
-            <Route path="/seller/listings/:id/edit" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute><AdminRoute><AdminReports /></AdminRoute></ProtectedRoute>} />
-            <Route path="/admin/refunds" element={<ProtectedRoute><AdminRoute><AdminRefunds /></AdminRoute></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+      <FavouritesProvider>
+        <div className="flex min-h-screen flex-col">
+          <Navbar />
+          <div className="flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/supplier/:id" element={<Supplier />} />
+              <Route path="/listing/:id" element={<ListingDetail />} />
+              <Route path="/listing/:id/book" element={<ProtectedRoute><BookingForm /></ProtectedRoute>} />
+              <Route path="/listing/:id/buy" element={<ProtectedRoute><OrderForm /></ProtectedRoute>} />
+              <Route path="/supplier-rules" element={<SupplierRules />} />
+              <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
+              <Route path="/my-bookings" element={<ProtectedRoute><MyBookings /></ProtectedRoute>} />
+              <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+              <Route path="/favourites" element={<ProtectedRoute><Favourites /></ProtectedRoute>} />
+              <Route path="/payment/success" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
+              <Route path="/payment/cancelled" element={<ProtectedRoute><PaymentResult cancelled /></ProtectedRoute>} />
+              <Route path="/seller" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
+              <Route path="/seller/bookings" element={<ProtectedRoute role="seller"><SellerBookings /></ProtectedRoute>} />
+              <Route path="/seller/payments" element={<ProtectedRoute role="seller"><SellerPayments /></ProtectedRoute>} />
+              <Route path="/seller/orders" element={<ProtectedRoute role="seller"><SellerOrders /></ProtectedRoute>} />
+              <Route path="/seller/listings/new" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
+              <Route path="/seller/listings/:id/edit" element={<ProtectedRoute role="seller"><ListingForm /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute><AdminRoute><Admin /></AdminRoute></ProtectedRoute>} />
+              <Route path="/admin/reports" element={<ProtectedRoute><AdminRoute><AdminReports /></AdminRoute></ProtectedRoute>} />
+              <Route path="/admin/refunds" element={<ProtectedRoute><AdminRoute><AdminRefunds /></AdminRoute></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
+          <Footer />
         </div>
-        <Footer />
-      </div>
+      </FavouritesProvider>
     </AuthProvider>
   )
 }
