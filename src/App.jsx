@@ -23,6 +23,7 @@ import SellerBookings from './pages/SellerBookings.jsx'
 import MyOrders from './pages/MyOrders.jsx'
 import SellerOrders from './pages/SellerOrders.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
+import About from './pages/About.jsx'
 import Terms from './pages/Terms.jsx'
 import Privacy from './pages/Privacy.jsx'
 import NotFound from './pages/NotFound.jsx'
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/about" element={<About />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/shop" element={<Shop />} />

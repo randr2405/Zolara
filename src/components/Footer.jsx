@@ -25,7 +25,8 @@ export default function Footer() {
           <Link to="/supplier-rules">Supplier rules</Link>
         </nav>
         <nav className={col}>
-          <p className={head}>Legal</p>
+          <p className={head}>Zolara</p>
+          <Link to="/about">About Zolara</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/privacy">Privacy</Link>
         </nav>

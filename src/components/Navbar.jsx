@@ -76,6 +76,7 @@ export default function Navbar() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <p className="text-gold">Support local businesses, don’t kill them.</p>
           <div className="flex gap-4">
+            <Link to="/about" className="hover:text-gold">About</Link>
             <Link to="/supplier-rules" className="hover:text-gold">Supplier rules</Link>
             {!user && <Link to="/signup" className="hover:text-gold">Sell on Zolara</Link>}
           </div>
