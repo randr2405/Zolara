@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { NOTICE_VERSION, SERVICE_NOTICE } from '../lib/bookings.js'
+import { notify } from '../lib/notify.js'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
 
@@ -36,7 +37,7 @@ export default function BookingForm() {
     setBusy(true)
     setError('')
     try {
-      await addDoc(collection(db, 'bookings'), {
+      const ref = await addDoc(collection(db, 'bookings'), {
         listingId: id,
         listingTitle: listing.title,
         priceCents: listing.priceCents,
@@ -55,6 +56,7 @@ export default function BookingForm() {
         noticeAcceptedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       })
+      notify('booking', ref.id, 'requested')
       navigate('/my-bookings')
     } catch (err) {
       console.error(err)

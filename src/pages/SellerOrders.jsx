@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import SellerFeedback from '../components/SellerFeedback.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
+import { notify } from '../lib/notify.js'
 import {
   STATUS_SUMMARY_COLUMNS, downloadWorkbook, stampDate, summaryByStatus,
 } from '../lib/reportExport.js'
@@ -71,10 +72,12 @@ export default function SellerOrders() {
     [user.uid]
   )
 
-  async function run(fn) {
+  // fn does the update; if it works, the matching email event is sent for order `id`.
+  async function run(fn, id, event) {
     setError('')
     try {
       await fn()
+      if (event) notify('order', id, event)
     } catch (err) {
       console.error(err)
       if (err.message === 'stock') setError('Not enough stock left to accept this order.')
@@ -183,25 +186,25 @@ export default function SellerOrders() {
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 {o.status === 'requested' && (
                   <>
-                    <button onClick={() => run(() => acceptOrder(o))}
+                    <button onClick={() => run(() => acceptOrder(o), o.id, 'confirmed')}
                       className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Accept</button>
-                    <button onClick={() => window.confirm('Decline this order?') && run(() => setStatus(o.id, 'declined'))}
+                    <button onClick={() => window.confirm('Decline this order?') && run(() => setStatus(o.id, 'declined'), o.id, 'declined')}
                       className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Decline</button>
                   </>
                 )}
                 {o.status === 'confirmed' && !paid && (
                   <>
                     <p className="text-sm text-gold-deep">Waiting for the customer to pay.</p>
-                    <button onClick={() => window.confirm('Cancel this order? The stock will be returned.') && run(() => cancelConfirmedOrder(o))}
+                    <button onClick={() => window.confirm('Cancel this order? The stock will be returned.') && run(() => cancelConfirmedOrder(o), o.id, 'cancelled')}
                       className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700">Cancel order</button>
                   </>
                 )}
                 {o.status === 'confirmed' && paid && (
-                  <button onClick={() => window.confirm('Mark this order as shipped?') && run(() => setStatus(o.id, 'shipped'))}
+                  <button onClick={() => window.confirm('Mark this order as shipped?') && run(() => setStatus(o.id, 'shipped'), o.id, 'shipped')}
                     className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as shipped</button>
                 )}
                 {o.status === 'shipped' && (
-                  <button onClick={() => window.confirm('Mark this order as delivered?') && run(() => setStatus(o.id, 'delivered'))}
+                  <button onClick={() => window.confirm('Mark this order as delivered?') && run(() => setStatus(o.id, 'delivered'), o.id, 'delivered')}
                     className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Mark as delivered</button>
                 )}
               </div>

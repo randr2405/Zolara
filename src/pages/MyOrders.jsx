@@ -9,6 +9,7 @@ import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 import { paymentErrorMessage, startPayment } from '../lib/payments.js'
+import { notify } from '../lib/notify.js'
 
 function FeedbackForm({ order, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -115,6 +116,18 @@ export default function MyOrders() {
     }
   }
 
+  async function cancelOrder(o) {
+    if (!window.confirm('Cancel this order?')) return
+    setError('')
+    try {
+      await updateDoc(doc(db, 'orders', o.id), { status: 'cancelled', updatedAt: serverTimestamp() })
+      notify('order', o.id, 'cancelled')
+    } catch (err) {
+      console.error(err)
+      setError('Could not cancel the order. Please try again.')
+    }
+  }
+
   async function download() {
     setError('')
     try {
@@ -208,11 +221,7 @@ export default function MyOrders() {
               )}
 
               {o.status === 'requested' && (
-                <button
-                  onClick={() =>
-                    window.confirm('Cancel this order?') &&
-                    updateDoc(doc(db, 'orders', o.id), { status: 'cancelled', updatedAt: serverTimestamp() })
-                  }
+                <button onClick={() => cancelOrder(o)}
                   className="mt-3 text-sm text-red-700 underline">
                   Cancel order
                 </button>

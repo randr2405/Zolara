@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_NOTICE, ORDER_NOTICE_VERSION } from '../lib/orders.js'
+import { notify } from '../lib/notify.js'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
 
@@ -36,7 +37,7 @@ export default function OrderForm() {
     setBusy(true)
     setError('')
     try {
-      await addDoc(collection(db, 'orders'), {
+      const ref = await addDoc(collection(db, 'orders'), {
         listingId: id,
         listingTitle: listing.title,
         thumb: listing.thumb || null,
@@ -56,6 +57,7 @@ export default function OrderForm() {
         noticeAcceptedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       })
+      notify('order', ref.id, 'requested')
       navigate('/my-orders')
     } catch (err) {
       console.error(err)

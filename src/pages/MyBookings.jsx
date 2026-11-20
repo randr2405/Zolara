@@ -9,6 +9,7 @@ import { formatZAR } from '../lib/constants.js'
 import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 import { paymentErrorMessage, startPayment } from '../lib/payments.js'
+import { notify } from '../lib/notify.js'
 
 function FeedbackForm({ booking, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -114,6 +115,18 @@ export default function MyBookings() {
     }
   }
 
+  async function cancelBooking(b) {
+    if (!window.confirm('Cancel this booking?')) return
+    setError('')
+    try {
+      await updateDoc(doc(db, 'bookings', b.id), { status: 'cancelled', updatedAt: serverTimestamp() })
+      notify('booking', b.id, 'cancelled')
+    } catch (err) {
+      console.error(err)
+      setError('Could not cancel the booking. Please try again.')
+    }
+  }
+
   async function download() {
     setError('')
     try {
@@ -204,11 +217,7 @@ export default function MyBookings() {
               )}
 
               {(b.status === 'requested' || (b.status === 'confirmed' && !paid)) && (
-                <button
-                  onClick={() =>
-                    window.confirm('Cancel this booking?') &&
-                    updateDoc(doc(db, 'bookings', b.id), { status: 'cancelled', updatedAt: serverTimestamp() })
-                  }
+                <button onClick={() => cancelBooking(b)}
                   className="mt-3 block text-sm text-red-700 underline">
                   Cancel booking
                 </button>

@@ -1,5 +1,6 @@
 import { adminDb, FieldValue } from './_lib/admin.js'
 import { isPayFastIp, paramString, sign, validateWithPayFast, withPassphrase } from './_lib/payfast.js'
+import { notifyEvent } from './_lib/notifications.js'
 
 const COLLECTION = { booking: 'bookings', order: 'orders' }
 
@@ -82,10 +83,10 @@ export default async function handler(req, res) {
 
     const feeCents = Math.abs(Math.round((parseFloat(data.amount_fee) || 0) * 100))
 
-    await adminDb.runTransaction(async (tx) => {
+    const paidNow = await adminDb.runTransaction(async (tx) => {
       const current = await tx.get(payRef)
       const p = current.data()
-      if (p.status === 'paid') return
+      if (p.status === 'paid') return null
       const itemRef = adminDb.collection(COLLECTION[p.kind]).doc(p.refId)
       const itemSnap = await tx.get(itemRef)
       const itemOk = itemSnap.exists && itemSnap.data().status === 'confirmed'
@@ -108,7 +109,19 @@ export default async function handler(req, res) {
           paidAt: FieldValue.serverTimestamp(),
         })
       }
+      return { kind: p.kind, id: p.refId }
     })
+
+    // Email the buyer and the supplier. A mail problem must never make PayFast think the
+    // notification failed, so errors are logged and swallowed. Awaited so the function
+    // is not frozen before the emails go out.
+    if (paidNow) {
+      try {
+        await notifyEvent({ kind: paidNow.kind, id: paidNow.id, event: 'paid' })
+      } catch (err) {
+        console.error('payfast-notify: paid email failed', err)
+      }
+    }
 
     return res.status(200).end()
   } catch (err) {

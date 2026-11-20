@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import SellerFeedback from '../components/SellerFeedback.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { BOOKING_STATUS, formatWhen } from '../lib/bookings.js'
+import { notify } from '../lib/notify.js'
 import {
   STATUS_SUMMARY_COLUMNS, downloadWorkbook, stampDate, summaryByStatus,
 } from '../lib/reportExport.js'
@@ -45,6 +46,7 @@ export default function SellerBookings() {
     setError('')
     try {
       await setStatus(id, status)
+      notify('booking', id, status)
     } catch (err) {
       console.error(err)
       setError('Could not update the booking. Please try again.')
