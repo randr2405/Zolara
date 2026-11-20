@@ -71,7 +71,7 @@ Zolara is owned by R&amp;R Agencies. Shop it. Book it. Love it.
   return { html, text }
 }
 
-export async function sendEmail({ to, subject, heading, lines, details, button }) {
+export async function sendEmail({ to, subject, heading, lines, details, button, replyTo }) {
   const key = process.env.RESEND_API_KEY
   if (!key) throw new Error('email_not_configured')
   if (!to) return false
@@ -83,7 +83,7 @@ export async function sendEmail({ to, subject, heading, lines, details, button }
     body: JSON.stringify({
       from: process.env.EMAIL_FROM || 'Zolara <onboarding@resend.dev>',
       to: [to],
-      reply_to: process.env.EMAIL_REPLY_TO || 'info@rragencies.co.za',
+      reply_to: replyTo || process.env.EMAIL_REPLY_TO || 'info@rragencies.co.za',
       subject,
       html,
       text,

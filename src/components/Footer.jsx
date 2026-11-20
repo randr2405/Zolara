@@ -27,6 +27,7 @@ export default function Footer() {
         <nav className={col}>
           <p className={head}>Zolara</p>
           <Link to="/about">About Zolara</Link>
+          <Link to="/contact">Contact us</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/privacy">Privacy</Link>
         </nav>
