@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where, writeBatch,
@@ -11,6 +11,61 @@ import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 import { paymentErrorMessage, startPayment } from '../lib/payments.js'
 import { notify } from '../lib/notify.js'
 import RefundRequest from '../components/RefundRequest.jsx'
+
+const btn =
+  'inline-flex min-h-[44px] items-center justify-center rounded-full px-5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 disabled:opacity-60'
+const btnPrimary = `${btn} bg-emerald-brand text-cream hover:bg-emerald-brand/90`
+const btnGold = `${btn} border border-gold-deep text-gold-deep hover:bg-gold-deep hover:text-white`
+const btnDanger = `${btn} border border-red-700 text-red-700 hover:bg-red-700 hover:text-white`
+const btnQuiet = `${btn} border border-gold/50 text-charcoal hover:bg-cream`
+
+const STATUS_STYLE = {
+  requested: 'bg-cream text-gold-deep ring-1 ring-gold/60',
+  confirmed: 'bg-emerald-brand text-cream',
+  declined: 'bg-red-100 text-red-800',
+  cancelled: 'bg-red-100 text-red-800',
+  completed: 'bg-cream text-charcoal/70 ring-1 ring-charcoal/20',
+}
+
+const ICONS = {
+  chevron: 'M6 9l6 6 6-6',
+  download: 'M12 4v11 M7 11l5 5 5-5 M5 20h14',
+  thumb: 'M7 11v9H4v-9h3z M7 11l4-7c1.5 0 2.5 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1 6A2 2 0 0 1 18 19H7',
+  flag: 'M5 21V4 M5 4h11l-2 4 2 4H5',
+}
+
+function Icon({ name, size = 18 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={ICONS[name]} />
+    </svg>
+  )
+}
+
+const sortKey = (b) => `${b.date || ''} ${b.time || ''}`
+
+function nextStep(b, hasFeedback) {
+  const paid = b.paymentStatus === 'paid'
+  if (b.status === 'requested') return 'Waiting for the supplier to respond.'
+  if (b.status === 'confirmed' && !paid) return 'Confirmed. Pay now to secure your booking.'
+  if (b.status === 'confirmed' && paid) return 'Confirmed and paid. You are all set.'
+  if (b.status === 'declined') return 'The supplier could not take this booking.'
+  if (b.status === 'cancelled') return 'You cancelled this booking.'
+  if (b.status === 'completed' && !hasFeedback) return 'Completed. Tell us how it went.'
+  if (b.status === 'completed') return 'Completed. Thank you for your feedback.'
+  return ''
+}
 
 function FeedbackForm({ booking, user }) {
   const [satisfied, setSatisfied] = useState(null)
@@ -52,30 +107,275 @@ function FeedbackForm({ booking, user }) {
     }
   }
 
+  const choice = (value, icon, title, hint, activeClass) => (
+    <button
+      type="button"
+      onClick={() => { setSatisfied(value); setError('') }}
+      aria-pressed={satisfied === value}
+      className={`flex min-h-[72px] flex-col items-start gap-1 rounded-2xl border p-3 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
+        satisfied === value ? `${activeClass} bg-cream` : 'border-gold/50 bg-white hover:bg-cream'}`}
+    >
+      <span className="flex items-center gap-2 font-medium">
+        <Icon name={icon} />
+        {title}
+      </span>
+      <span className="text-xs text-charcoal/70">{hint}</span>
+    </button>
+  )
+
   return (
-    <form onSubmit={submit} className="mt-3 flex flex-col gap-3 border-t border-gold/40 pt-3">
-      <p className="text-sm font-medium text-emerald-brand">Were you satisfied with this service?</p>
-      <div className="grid grid-cols-2 gap-3">
-        <button type="button" onClick={() => setSatisfied(true)}
-          className={`rounded-xl border p-3 text-sm ${satisfied === true ? 'border-emerald-brand bg-cream' : 'border-gold/50'}`}>
-          Yes, I was happy
-        </button>
-        <button type="button" onClick={() => setSatisfied(false)}
-          className={`rounded-xl border p-3 text-sm ${satisfied === false ? 'border-red-700 bg-cream' : 'border-gold/50'}`}>
-          No, there was a problem
-        </button>
+    <form onSubmit={submit} className="mt-4 flex flex-col gap-3 rounded-2xl border border-gold/40 bg-cream/60 p-4">
+      <p className="text-sm font-semibold text-emerald-brand">Were you satisfied with this service?</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {choice(true, 'thumb', 'Yes, I was happy', 'Everything went well', 'border-emerald-brand text-emerald-brand')}
+        {choice(false, 'flag', 'No, there was a problem', 'We will look into it', 'border-red-700 text-red-800')}
       </div>
-      <textarea rows={3}
-        placeholder={satisfied === false ? 'Tell us what went wrong' : 'Anything you would like to add? (optional)'}
-        value={comment} onChange={(e) => setComment(e.target.value)}
-        className="rounded-lg border border-gold/50 bg-white p-3 text-sm" />
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      <button disabled={busy}
-        className="self-start rounded-full bg-emerald-brand px-5 py-2 text-sm text-cream disabled:opacity-60">
+      {satisfied !== null && (
+        <div>
+          <label htmlFor={`comment-${booking.id}`} className="sr-only">Your comment</label>
+          <textarea
+            id={`comment-${booking.id}`}
+            rows={3}
+            placeholder={satisfied === false ? 'Tell us what went wrong' : 'Anything you would like to add? (optional)'}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="w-full rounded-xl border border-gold/50 bg-white p-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          />
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      )}
+      <button disabled={busy} className={`${btnPrimary} w-full sm:w-auto sm:self-start`}>
         {busy ? 'Sending…' : 'Send feedback'}
       </button>
     </form>
   )
+}
+
+function DetailRow({ label, value }) {
+  if (!value) return null
+  return (
+    <div>
+      <dt className="text-xs font-medium text-gold-deep">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm">{value}</dd>
+    </div>
+  )
+}
+
+function BookingCard({ booking: b, feedback, user }) {
+  const [open, setOpen] = useState(false)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [error, setError] = useState('')
+  const [flash, setFlash] = useState(false)
+  const lastStatus = useRef(b.status)
+
+  useEffect(() => {
+    if (lastStatus.current !== b.status) {
+      lastStatus.current = b.status
+      setFlash(true)
+      const t = setTimeout(() => setFlash(false), 2500)
+      return () => clearTimeout(t)
+    }
+    return undefined
+  }, [b.status])
+
+  const paid = b.paymentStatus === 'paid'
+  const refunded = b.paymentStatus === 'refunded'
+  const canCancel = b.status === 'requested' || (b.status === 'confirmed' && !paid)
+  const dateObj = b.date ? new Date(`${b.date}T12:00:00`) : null
+  const day = dateObj ? dateObj.toLocaleDateString('en-ZA', { day: 'numeric' }) : ''
+  const month = dateObj ? dateObj.toLocaleDateString('en-ZA', { month: 'short' }).replace('.', '').toUpperCase() : ''
+  const reference = b.id.slice(0, 8).toUpperCase()
+
+  async function pay() {
+    setError('')
+    setPaying(true)
+    try {
+      await startPayment('booking', b.id)
+    } catch (err) {
+      console.error(err)
+      setError(paymentErrorMessage(err))
+      setPaying(false)
+    }
+  }
+
+  async function cancelBooking() {
+    setBusy(true)
+    setError('')
+    try {
+      await updateDoc(doc(db, 'bookings', b.id), { status: 'cancelled', updatedAt: serverTimestamp() })
+      notify('booking', b.id, 'cancelled')
+      setConfirmingCancel(false)
+    } catch (err) {
+      console.error(err)
+      setError('Could not cancel the booking. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <li
+      className={`rounded-2xl border bg-white p-4 shadow-sm transition sm:p-5 ${
+        flash ? 'border-gold ring-2 ring-gold/60' : 'border-gold/40'}`}
+    >
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div
+          className="flex h-16 w-14 flex-none flex-col items-center justify-center rounded-xl bg-emerald-brand text-cream sm:h-[72px] sm:w-16"
+          aria-hidden="true"
+        >
+          {dateObj ? (
+            <>
+              <span className="font-display text-2xl font-semibold leading-none text-gold">{day}</span>
+              <span className="mt-1 text-[11px] font-semibold tracking-wide">{month}</span>
+              {b.time && <span className="mt-0.5 text-[11px] text-cream/80">{b.time}</span>}
+            </>
+          ) : (
+            <span className="text-xs">No date</span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="break-words font-semibold text-emerald-brand">{b.listingTitle}</p>
+          <p className="break-words text-sm text-charcoal/70">{b.sellerName}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2" aria-live="polite">
+            <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${STATUS_STYLE[b.status] || STATUS_STYLE.requested}`}>
+              {BOOKING_STATUS[b.status] || b.status}
+            </span>
+            {paid && (
+              <span className="rounded-full bg-cream px-3 py-0.5 text-xs font-medium text-emerald-brand ring-1 ring-emerald-brand/40">
+                Paid
+              </span>
+            )}
+            {refunded && (
+              <span className="rounded-full bg-cream px-3 py-0.5 text-xs font-medium text-gold-deep ring-1 ring-gold/60">
+                Refunded
+              </span>
+            )}
+          </div>
+        </div>
+
+        <p className="flex-none text-right text-sm font-semibold text-emerald-brand">{formatZAR(b.priceCents)}</p>
+      </div>
+
+      <p className="mt-3 text-sm text-charcoal/80">{nextStep(b, Boolean(feedback))}</p>
+
+      {error && (
+        <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      )}
+
+      {confirmingCancel ? (
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4" role="alertdialog" aria-label="Confirm cancellation">
+          <p className="text-sm font-medium text-red-800">
+            Cancel this booking with {b.sellerName}? This cannot be undone.
+          </p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <button disabled={busy} onClick={cancelBooking} className={`${btnDanger} w-full bg-white sm:w-auto`}>
+              {busy ? 'Cancelling…' : 'Yes, cancel booking'}
+            </button>
+            <button disabled={busy} onClick={() => setConfirmingCancel(false)} className={`${btnQuiet} w-full bg-white sm:w-auto`}>
+              Keep booking
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {b.status === 'confirmed' && !paid && (
+            <button disabled={paying} onClick={pay} className={`${btnPrimary} w-full sm:w-auto`}>
+              {paying ? 'Opening PayFast…' : `Pay now · ${formatZAR(b.priceCents)}`}
+            </button>
+          )}
+          {canCancel && (
+            <button onClick={() => setConfirmingCancel(true)} className={`${btnQuiet} w-full sm:w-auto`}>
+              {b.status === 'requested' ? 'Cancel request' : 'Cancel booking'}
+            </button>
+          )}
+          {b.status === 'declined' && (
+            <Link to="/shop" className={`${btnGold} w-full sm:w-auto`}>
+              Find another service
+            </Link>
+          )}
+          {b.status === 'completed' && !feedback && (
+            <button
+              onClick={() => setShowFeedback(!showFeedback)}
+              aria-expanded={showFeedback}
+              className={`${btnGold} w-full sm:w-auto`}
+            >
+              {showFeedback ? 'Hide feedback form' : 'How did it go?'}
+            </button>
+          )}
+          <button
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-full px-3 text-sm font-medium text-emerald-brand underline focus:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:ml-auto"
+          >
+            {open ? 'Hide details' : 'View details'}
+            <span className={`transition ${open ? 'rotate-180' : ''}`}>
+              <Icon name="chevron" />
+            </span>
+          </button>
+        </div>
+      )}
+
+      {b.status === 'completed' && !feedback && showFeedback && <FeedbackForm booking={b} user={user} />}
+
+      {b.status === 'completed' && feedback && (
+        <p className="mt-4 rounded-xl bg-cream px-4 py-3 text-sm text-emerald-brand">
+          {feedback.satisfied
+            ? 'Thank you for your feedback. We are glad you were happy.'
+            : 'Thank you for telling us. We take service seriously and will look into this.'}
+        </p>
+      )}
+
+      {open && (
+        <div className="mt-4 border-t border-gold/40 pt-4">
+          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            <DetailRow label="When" value={formatWhen(b.date, b.time)} />
+            <DetailRow label="Price" value={formatZAR(b.priceCents)} />
+            <DetailRow label="Supplier" value={b.sellerName} />
+            <DetailRow label="Payment" value={paid ? 'Paid' : refunded ? 'Refunded' : 'Not paid'} />
+            <DetailRow label="Booking reference" value={reference} />
+          </dl>
+          <RefundRequest kind="booking" item={b} />
+        </div>
+      )}
+    </li>
+  )
+}
+
+function Skeleton() {
+  return (
+    <ul className="flex flex-col gap-4" role="status" aria-label="Loading bookings">
+      {[0, 1, 2].map((i) => (
+        <li key={i} className="animate-pulse rounded-2xl border border-gold/30 bg-white p-5">
+          <div className="flex gap-4">
+            <div className="h-[72px] w-16 rounded-xl bg-cream" />
+            <div className="flex-1">
+              <div className="h-4 w-2/3 rounded bg-cream" />
+              <div className="mt-2 h-3 w-1/3 rounded bg-cream" />
+              <div className="mt-3 h-5 w-24 rounded-full bg-cream" />
+            </div>
+          </div>
+          <div className="mt-4 h-11 rounded-full bg-cream" />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+const EMPTY = {
+  action: 'Nothing needs your attention right now.',
+  upcoming: 'No upcoming bookings.',
+  past: 'No completed bookings yet.',
+  closed: 'No cancelled or declined bookings.',
 }
 
 export default function MyBookings() {
@@ -83,51 +383,39 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState(null)
   const [feedback, setFeedback] = useState({})
   const [error, setError] = useState('')
-  const [payingId, setPayingId] = useState('')
+  const [tab, setTab] = useState(null)
 
   useEffect(
     () =>
-      onSnapshot(query(collection(db, 'bookings'), where('buyerId', '==', user.uid)), (snap) => {
-        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-        setBookings(items)
-      }),
+      onSnapshot(
+        query(collection(db, 'bookings'), where('buyerId', '==', user.uid)),
+        (snap) => {
+          const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+          setBookings(items)
+        },
+        (err) => {
+          console.error(err)
+          setError('Could not load your bookings. Please refresh and try again.')
+          setBookings([])
+        }
+      ),
     [user.uid]
   )
 
   useEffect(
     () =>
-      onSnapshot(query(collection(db, 'feedback'), where('buyerId', '==', user.uid)), (snap) => {
-        const map = {}
-        snap.docs.forEach((d) => { map[d.id] = d.data() })
-        setFeedback(map)
-      }),
+      onSnapshot(
+        query(collection(db, 'feedback'), where('buyerId', '==', user.uid)),
+        (snap) => {
+          const map = {}
+          snap.docs.forEach((d) => { map[d.id] = d.data() })
+          setFeedback(map)
+        },
+        (err) => console.error(err)
+      ),
     [user.uid]
   )
-
-  async function pay(b) {
-    setError('')
-    setPayingId(b.id)
-    try {
-      await startPayment('booking', b.id)
-    } catch (err) {
-      console.error(err)
-      setError(paymentErrorMessage(err))
-      setPayingId('')
-    }
-  }
-
-  async function cancelBooking(b) {
-    if (!window.confirm('Cancel this booking?')) return
-    setError('')
-    try {
-      await updateDoc(doc(db, 'bookings', b.id), { status: 'cancelled', updatedAt: serverTimestamp() })
-      notify('booking', b.id, 'cancelled')
-    } catch (err) {
-      console.error(err)
-      setError('Could not cancel the booking. Please try again.')
-    }
-  }
 
   async function download() {
     setError('')
@@ -172,74 +460,114 @@ export default function MyBookings() {
     }
   }
 
-  if (!bookings) return <p className="p-6 text-center">Loading…</p>
+  const list = bookings || []
+  const groups = {
+    action: list
+      .filter((b) => (b.status === 'confirmed' && b.paymentStatus !== 'paid') || (b.status === 'completed' && !feedback[b.id]))
+      .sort((a, b) => sortKey(a).localeCompare(sortKey(b))),
+    upcoming: list
+      .filter((b) => b.status === 'requested' || b.status === 'confirmed')
+      .sort((a, b) => sortKey(a).localeCompare(sortKey(b))),
+    past: list.filter((b) => b.status === 'completed'),
+    closed: list.filter((b) => b.status === 'declined' || b.status === 'cancelled'),
+  }
+  const tabs = [
+    ['action', 'Action needed', groups.action.length, true],
+    ['upcoming', 'Upcoming', groups.upcoming.length, false],
+    ['past', 'Past', groups.past.length, false],
+    ['closed', 'Cancelled / declined', groups.closed.length, false],
+  ]
+  const activeTab = tab || (groups.action.length > 0 ? 'action' : 'upcoming')
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-emerald-brand">My bookings</h1>
-        <button onClick={download} disabled={bookings.length === 0}
-          className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
-          Download Excel
-        </button>
-      </div>
+    <div className="bg-cream">
+      <header className="border-b-4 border-gold bg-emerald-brand px-5 pb-8 pt-9 text-cream sm:px-8 sm:pb-10 sm:pt-12">
+        <div className="mx-auto max-w-3xl">
+          <h1 className="font-display text-3xl font-semibold leading-tight sm:text-4xl">My bookings</h1>
+          <p className="mt-2 max-w-xl text-sm text-cream/85 sm:text-base">
+            Track your requests, pay for confirmed bookings and tell us how your service went.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button
+              onClick={download}
+              disabled={!bookings || bookings.length === 0}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-cream/60 px-5 py-2 text-sm font-medium text-cream transition hover:bg-cream hover:text-emerald-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-cream disabled:opacity-60"
+            >
+              <Icon name="download" />
+              Download Excel
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
+      <main className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-8 sm:pt-8">
+        {error && (
+          <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
+          </p>
+        )}
 
-      {bookings.length === 0 && (
-        <p className="text-sm">
-          No bookings yet. <Link to="/shop" className="text-emerald-brand underline">Browse services</Link>
-        </p>
-      )}
-
-      <ul className="flex flex-col gap-3">
-        {bookings.map((b) => {
-          const paid = b.paymentStatus === 'paid'
-          return (
-            <li key={b.id} className="rounded-xl bg-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium">{b.listingTitle}</p>
-                  <p className="text-sm">{b.sellerName} · {formatZAR(b.priceCents)}</p>
-                  <p className="text-sm text-gold-deep">{formatWhen(b.date, b.time)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="rounded-full bg-cream px-3 py-1 text-xs">{BOOKING_STATUS[b.status]}</span>
-                  {paid && <span className="rounded-full bg-cream px-3 py-1 text-xs text-emerald-brand">Paid</span>}
-                  {b.paymentStatus === 'refunded' && <span className="rounded-full bg-cream px-3 py-1 text-xs text-gold-deep">Refunded</span>}
-                </div>
-              </div>
-
-              {b.status === 'confirmed' && !paid && (
-                <div className="mt-3 flex flex-wrap items-center gap-4">
-                  <button disabled={payingId === b.id} onClick={() => pay(b)}
-                    className="rounded-full bg-emerald-brand px-5 py-2 text-sm text-cream disabled:opacity-60">
-                    {payingId === b.id ? 'Opening PayFast…' : `Pay now · ${formatZAR(b.priceCents)}`}
-                  </button>
-                </div>
-              )}
-
-              {(b.status === 'requested' || (b.status === 'confirmed' && !paid)) && (
-                <button onClick={() => cancelBooking(b)}
-                  className="mt-3 block text-sm text-red-700 underline">
-                  Cancel booking
+        {!bookings ? (
+          <Skeleton />
+        ) : bookings.length === 0 ? (
+          <div className="rounded-2xl border border-gold/40 bg-white p-8 text-center shadow-sm">
+            <p className="font-display text-xl font-semibold text-emerald-brand">No bookings yet</p>
+            <p className="mt-2 text-sm text-charcoal/70">When you book a service, it will show up here.</p>
+            <Link to="/shop" className={`${btnPrimary} mt-5`}>
+              Browse services
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div
+              className="-mx-5 mb-6 flex gap-2 overflow-x-auto px-5 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+              role="group"
+              aria-label="Booking sections"
+            >
+              {tabs.map(([v, label, n, attention]) => (
+                <button
+                  key={v}
+                  onClick={() => setTab(v)}
+                  aria-pressed={activeTab === v}
+                  className={`inline-flex min-h-[44px] flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 ${
+                    activeTab === v
+                      ? 'bg-emerald-brand text-cream'
+                      : 'border border-gold-deep bg-white text-gold-deep hover:bg-cream'}`}
+                >
+                  {label}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      attention && n > 0
+                        ? 'bg-gold text-emerald-brand'
+                        : activeTab === v
+                          ? 'bg-cream/20 text-cream'
+                          : 'bg-cream text-gold-deep'}`}
+                  >
+                    {n}
+                  </span>
                 </button>
-              )}
+              ))}
+            </div>
 
-              <RefundRequest kind="booking" item={b} />
-
-              {b.status === 'completed' && !feedback[b.id] && <FeedbackForm booking={b} user={user} />}
-              {b.status === 'completed' && feedback[b.id] && (
-                <p className="mt-3 border-t border-gold/40 pt-3 text-sm">
-                  {feedback[b.id].satisfied
-                    ? 'Thank you for your feedback. We are glad you were happy.'
-                    : 'Thank you for telling us. We take service seriously and will look into this.'}
-                </p>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </main>
+            {groups[activeTab].length === 0 ? (
+              <div className="rounded-2xl border border-gold/40 bg-white p-6 text-center shadow-sm">
+                <p className="text-sm">{EMPTY[activeTab]}</p>
+                {activeTab === 'upcoming' && (
+                  <Link to="/shop" className={`${btnPrimary} mt-4`}>
+                    Browse services
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {groups[activeTab].map((b) => (
+                  <BookingCard key={b.id} booking={b} feedback={feedback[b.id]} user={user} />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </main>
+    </div>
   )
 }
