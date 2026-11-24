@@ -128,7 +128,7 @@ export default function Navbar() {
           {user ? (
             <details ref={acct} className="relative">
               <summary className={`cursor-pointer list-none ${navLink}`}>Hi, {firstName}</summary>
-              <div onClick={closeAll} className="absolute right-0 mt-3 w-52 rounded-lg bg-white p-2 shadow-lg ring-1 ring-gold/50">
+              <div onClick={closeAll} className="absolute right-0 z-50 mt-3 w-52 rounded-lg bg-white p-2 shadow-lg ring-1 ring-gold/50">
                 {isAdmin && (
                   <>
                     <Link to="/admin" className={`${item} font-medium text-gold-deep`}>Admin</Link>
