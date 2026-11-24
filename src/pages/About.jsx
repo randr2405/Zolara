@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { collection, getDocs, limit, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import Reveal from '../components/Reveal.jsx'
+import logo from '../assets/zolara-logo.png'
 import { CONTACT_EMAIL, OWNER } from '../lib/legal.js'
 import { PREFERRED_LABEL, formatZAR } from '../lib/constants.js'
 
@@ -135,21 +136,9 @@ function Band({ tone = 'cream', children, label }) {
 }
 
 function Logo() {
-  const [failed, setFailed] = useState(false)
-  if (failed) {
-    return (
-      <div className="flex flex-col items-center gap-1 py-6">
-        <div className="flex items-center gap-2">
-          <Swoosh className="h-14 w-14 text-gold" />
-          <span className="font-display text-6xl font-semibold text-emerald-brand">Zolara</span>
-        </div>
-        <span className="text-sm tracking-widest text-gold-deep">Shop it. Book it. Love it.</span>
-      </div>
-    )
-  }
   return (
-    <img src="/zolara-logo.png" alt="Zolara: a shopping bag shaped like a Z, with the slogan Shop it. Book it. Love it."
-      onError={() => setFailed(true)} className="h-auto w-full object-contain" />
+    <img src={logo} alt="Zolara: a shopping bag shaped like a Z, with the slogan Shop it. Book it. Love it."
+      className="h-auto w-full object-contain" />
   )
 }
 
