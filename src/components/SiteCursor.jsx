@@ -34,20 +34,20 @@ export default function SiteCursor() {
       material="chrome"
       color="#C9A24B"
       blend="normal"
-      size={48}
+      size={26}
       morph={0}
       depth={0.8}
-      trail={10}
+      trail={8}
       lag={0.5}
-      goo={0.8}
+      goo={0.7}
       stretch={0.5}
-      wobble={0.7}
+      wobble={0.6}
       drip={0}
       shine={1}
       splash
       splashCount={5}
-      splashSpeed={0.4}
-      splashSize={0.35}
+      splashSpeed={0.35}
+      splashSize={0.3}
       splashGravity={0}
       regrow={0.6}
       shadow={false}
