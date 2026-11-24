@@ -13,6 +13,44 @@ const statusOf = (s) => s.status || (s.verified ? 'approved' : 'pending')
 const reviewLabel = (c) =>
   c.reviewStatus === 'valid' ? 'Upheld' : c.reviewStatus === 'dismissed' ? 'Dismissed' : 'Needs review'
 
+const btn =
+  'inline-flex min-h-[44px] items-center justify-center rounded-full px-5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 disabled:opacity-60'
+const btnPrimary = `${btn} bg-emerald-brand text-cream hover:bg-emerald-brand/90`
+const btnGold = `${btn} border border-gold-deep text-gold-deep hover:bg-gold-deep hover:text-white`
+const btnDanger = `${btn} border border-red-700 text-red-700 hover:bg-red-700 hover:text-white`
+
+const STATUS_STYLE = {
+  pending: 'bg-cream text-gold-deep ring-1 ring-gold/60',
+  approved: 'bg-emerald-brand text-cream',
+  rejected: 'bg-red-100 text-red-800',
+  removed: 'bg-red-100 text-red-800',
+}
+
+const ICONS = {
+  chevron: 'M6 9l6 6 6-6',
+  download: 'M12 4v11 M7 11l5 5 5-5 M5 20h14',
+  chart: 'M4 20V4 M4 20h16 M8 16v-5 M12 16V8 M16 16v-3',
+}
+
+function Icon({ name, size = 18 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={ICONS[name]} />
+    </svg>
+  )
+}
+
 async function decide(seller, status, reason = '') {
   const approved = status === 'approved'
   const head = writeBatch(db)
@@ -45,13 +83,32 @@ async function setPreferred(seller, value) {
   }
 }
 
-function Row({ label, value }) {
+function Row({ label, value, wide }) {
   if (!value) return null
   return (
-    <p className="text-sm">
-      <span className="text-gold-deep">{label}: </span>
-      <span className="whitespace-pre-line">{value}</span>
-    </p>
+    <div className={wide ? 'sm:col-span-2' : ''}>
+      <dt className="text-xs font-medium text-gold-deep">{label}</dt>
+      <dd className="mt-0.5 whitespace-pre-line break-words text-sm">{value}</dd>
+    </div>
+  )
+}
+
+function StrikeMeter({ strikes }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1" aria-hidden="true">
+        {Array.from({ length: STRIKE_LIMIT }).map((_, i) => (
+          <span
+            key={i}
+            className={`h-2 w-8 rounded-full ${i < strikes ? 'bg-red-700' : 'bg-cream ring-1 ring-gold/50'}`}
+          />
+        ))}
+      </div>
+      <p className="text-xs">
+        Upheld complaints for this supplier in the last {STRIKE_WINDOW_DAYS} days: {strikes} of {STRIKE_LIMIT}
+        {strikes >= STRIKE_LIMIT ? '. Removal threshold reached.' : ''}
+      </p>
+    </div>
   )
 }
 
@@ -113,79 +170,101 @@ function SellerCard({ seller, status, complaintCount, strikes }) {
   }
 
   const when = seller.acceptedRulesAt?.toDate?.().toLocaleDateString('en-ZA')
+  const initial = (seller.businessName || '?').trim().charAt(0).toUpperCase()
 
   return (
-    <li className="rounded-xl bg-white p-4">
-      <div className="flex items-center gap-3">
-        {seller.logoUrl
-          ? <img src={seller.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
-          : <div className="h-12 w-12 rounded-full bg-cream" />}
-        <div className="flex-1">
-          <p className="font-medium">
-            {seller.businessName}
+    <li className="rounded-2xl border border-gold/40 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+        {seller.logoUrl ? (
+          <img src={seller.logoUrl} alt="" className="h-12 w-12 flex-none rounded-full object-cover sm:h-14 sm:w-14" />
+        ) : (
+          <div
+            className="grid h-12 w-12 flex-none place-items-center rounded-full bg-emerald-brand font-display text-xl font-semibold text-gold sm:h-14 sm:w-14"
+            aria-hidden="true"
+          >
+            {initial}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="break-words font-semibold text-emerald-brand">{seller.businessName}</p>
+          <p className="text-sm text-charcoal/70">{seller.city}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className={`rounded-full px-3 py-0.5 text-xs font-medium capitalize ${STATUS_STYLE[status] || STATUS_STYLE.pending}`}>
+              {status}
+            </span>
             {seller.preferred && (
-              <span className="ml-2 rounded-full bg-cream px-2 py-0.5 text-xs text-gold-deep">Preferred</span>
-            )}
-          </p>
-          <p className="text-xs">
-            {seller.city}
-            {complaintCount > 0 && (
-              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-red-700">
-                {complaintCount} {complaintCount === 1 ? 'complaint' : 'complaints'}{strikes > 0 ? `, ${strikes} upheld` : ''}
+              <span className="rounded-full bg-cream px-3 py-0.5 text-xs font-medium text-gold-deep ring-1 ring-gold/60">
+                Preferred
               </span>
             )}
-          </p>
+            {complaintCount > 0 && (
+              <span className="rounded-full bg-red-100 px-3 py-0.5 text-xs font-medium text-red-800">
+                {complaintCount} {complaintCount === 1 ? 'complaint' : 'complaints'}
+                {strikes > 0 ? `, ${strikes} upheld` : ''}
+              </span>
+            )}
+          </div>
         </div>
-        <button onClick={toggle} className="text-sm text-emerald-brand underline">
+        <button
+          onClick={toggle}
+          aria-expanded={open}
+          className="inline-flex min-h-[44px] flex-none items-center gap-1 rounded-full px-3 text-sm font-medium text-emerald-brand underline focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+        >
           {open ? 'Hide details' : 'View details'}
+          <span className={`transition ${open ? 'rotate-180' : ''}`}>
+            <Icon name="chevron" />
+          </span>
         </button>
       </div>
 
       {open && (
-        <div className="mt-3 flex flex-col gap-1 border-t border-gold/40 pt-3">
-          <Row label="Email" value={details?.email} />
-          <Row label="Phone" value={details?.app?.phone || seller.phone} />
-          <Row label="About" value={seller.description} />
-          <Row label="Registration number" value={details?.app?.registrationNumber} />
-          <Row label="References" value={details?.app?.references} />
-          <Row label="Examples of work" value={details?.app?.examples} />
-          <Row label="Agreed to rules" value={when && `${when} (version ${seller.rulesVersion || '1.0'})`} />
+        <div className="mt-4 border-t border-gold/40 pt-4">
+          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            <Row label="Email" value={details?.email} />
+            <Row label="Phone" value={details?.app?.phone || seller.phone} />
+            <Row label="Registration number" value={details?.app?.registrationNumber} />
+            <Row label="Agreed to rules" value={when && `${when} (version ${seller.rulesVersion || '1.0'})`} />
+            <Row label="About" value={seller.description} wide />
+            <Row label="References" value={details?.app?.references} wide />
+            <Row label="Examples of work" value={details?.app?.examples} wide />
+          </dl>
           {details && !details.app?.references && (
-            <p className="text-xs text-gold-deep">No application details on file for this supplier.</p>
+            <p className="mt-3 rounded-xl bg-cream px-4 py-3 text-sm text-gold-deep">
+              No application details on file for this supplier.
+            </p>
           )}
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      )}
 
-      <div className="mt-3 flex gap-3">
+      <div className="mt-4 flex flex-wrap gap-3">
         {status === 'pending' && (
           <>
-            <button disabled={busy} onClick={() => act('approved', 'Approve', false)}
-              className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream disabled:opacity-60">
+            <button disabled={busy} onClick={() => act('approved', 'Approve', false)} className={btnPrimary}>
               Approve
             </button>
-            <button disabled={busy} onClick={() => act('rejected', 'Reject', true)}
-              className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700 disabled:opacity-60">
+            <button disabled={busy} onClick={() => act('rejected', 'Reject', true)} className={btnDanger}>
               Reject
             </button>
           </>
         )}
         {status === 'approved' && (
           <>
-            <button disabled={busy} onClick={togglePreferred}
-              className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+            <button disabled={busy} onClick={togglePreferred} className={btnGold}>
               {seller.preferred ? 'Remove preferred' : 'Make preferred'}
             </button>
-            <button disabled={busy} onClick={() => act('removed', 'Remove', true)}
-              className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700 disabled:opacity-60">
+            <button disabled={busy} onClick={() => act('removed', 'Remove', true)} className={btnDanger}>
               Remove supplier
             </button>
           </>
         )}
         {(status === 'rejected' || status === 'removed') && (
-          <button disabled={busy} onClick={() => act('approved', 'Reinstate', false)}
-            className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream disabled:opacity-60">
+          <button disabled={busy} onClick={() => act('approved', 'Reinstate', false)} className={btnPrimary}>
             Reinstate
           </button>
         )}
@@ -218,64 +297,79 @@ function Complaints({ complaints, sellers, validCounts, onOpenSupplier }) {
     }
   }
 
-  if (complaints.length === 0) return <p className="text-sm">No complaints.</p>
+  if (complaints.length === 0) {
+    return <p className="rounded-2xl border border-gold/40 bg-white p-6 text-center text-sm">No complaints.</p>
+  }
 
   return (
     <>
-      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
-      <ul className="flex flex-col gap-3">
+      {error && (
+        <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      )}
+      <ul className="flex flex-col gap-4">
         {complaints.map((c) => {
           const seller = sellers.find((s) => s.id === c.sellerId)
           const when = c.createdAt?.toDate?.().toLocaleDateString('en-ZA')
           const strikes = validCounts[c.sellerId] || 0
           return (
-            <li key={c.id} className="rounded-xl bg-white p-4">
+            <li key={c.id} className="rounded-2xl border border-gold/40 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium">{c.sellerName || seller?.businessName}</p>
+                <div className="min-w-0">
+                  <p className="break-words font-semibold text-emerald-brand">{c.sellerName || seller?.businessName}</p>
                   <p className="text-sm text-gold-deep">{c.listingTitle}{when ? ` · ${when}` : ''}</p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs ${
-                  c.reviewStatus ? 'bg-cream' : 'bg-red-100 text-red-700'}`}>
+                <span
+                  className={`flex-none rounded-full px-3 py-1 text-xs font-medium ${
+                    c.reviewStatus
+                      ? c.reviewStatus === 'valid'
+                        ? 'bg-emerald-brand text-cream'
+                        : 'bg-cream text-gold-deep ring-1 ring-gold/60'
+                      : 'bg-red-100 text-red-800'}`}
+                >
                   {reviewLabel(c)}
                 </span>
               </div>
 
-              <p className="mt-2 whitespace-pre-line text-sm">{c.comment || 'No comment left.'}</p>
-
-              <p className="mt-2 whitespace-pre-line text-sm">
-                <span className="text-gold-deep">Supplier response: </span>
-                {c.sellerResponse || 'None yet.'}
-              </p>
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-xl border-l-4 border-gold bg-cream px-4 py-3">
+                  <p className="text-xs font-medium text-gold-deep">Customer comment</p>
+                  <p className="mt-1 whitespace-pre-line break-words text-sm">{c.comment || 'No comment left.'}</p>
+                </div>
+                <div className="rounded-xl border-l-4 border-emerald-brand bg-cream px-4 py-3">
+                  <p className="text-xs font-medium text-gold-deep">Supplier response</p>
+                  <p className="mt-1 whitespace-pre-line break-words text-sm">{c.sellerResponse || 'None yet.'}</p>
+                </div>
+              </div>
 
               {c.reviewStatus && (
-                <p className="mt-2 text-xs">
+                <p className="mt-3 text-sm">
                   {c.reviewStatus === 'valid' && c.strikeNumber ? `Strike ${c.strikeNumber}: ${strikeLabel(c.strikeNumber)}. ` : ''}
                   {c.reviewNote ? `Note: ${c.reviewNote}` : ''}
                 </p>
               )}
 
-              <p className="mt-2 text-xs">
-                Upheld complaints for this supplier in the last {STRIKE_WINDOW_DAYS} days: {strikes} of {STRIKE_LIMIT}
-                {strikes >= STRIKE_LIMIT ? '. Removal threshold reached.' : ''}
-              </p>
+              <div className="mt-3">
+                <StrikeMeter strikes={strikes} />
+              </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 {!c.reviewStatus && (
                   <>
-                    <button disabled={busyId === c.id} onClick={() => review(c, 'valid')}
-                      className="rounded-full border border-red-700 px-4 py-2 text-sm text-red-700 disabled:opacity-60">
+                    <button disabled={busyId === c.id} onClick={() => review(c, 'valid')} className={btnDanger}>
                       Uphold complaint
                     </button>
-                    <button disabled={busyId === c.id} onClick={() => review(c, 'dismissed')}
-                      className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep disabled:opacity-60">
+                    <button disabled={busyId === c.id} onClick={() => review(c, 'dismissed')} className={btnGold}>
                       Dismiss
                     </button>
                   </>
                 )}
                 {seller && (
-                  <button onClick={() => onOpenSupplier(statusOf(seller))}
-                    className="text-sm text-emerald-brand underline">
+                  <button
+                    onClick={() => onOpenSupplier(statusOf(seller))}
+                    className="inline-flex min-h-[44px] items-center rounded-full px-3 text-sm font-medium text-emerald-brand underline focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                  >
                     Go to supplier ({statusOf(seller)})
                   </button>
                 )}
@@ -334,8 +428,20 @@ export default function Admin() {
     []
   )
 
-  if (error) return <p className="p-6 text-center text-red-700">{error}</p>
-  if (!sellers) return <p className="p-6 text-center">Loading…</p>
+  if (error) {
+    return (
+      <p role="alert" className="mx-auto my-10 max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-800">
+        {error}
+      </p>
+    )
+  }
+  if (!sellers) {
+    return (
+      <p role="status" className="p-10 text-center text-emerald-brand">
+        Loading…
+      </p>
+    )
+  }
 
   const counts = {}
   const validCounts = {}
@@ -353,11 +459,11 @@ export default function Admin() {
     closed: sellers.filter((s) => ['rejected', 'removed'].includes(statusOf(s))),
   }
   const tabs = [
-    ['pending', 'Pending', groups.pending.length],
-    ['approved', 'Approved', groups.approved.length],
-    ['closed', 'Rejected / removed', groups.closed.length],
-    ['complaints', 'Complaints to review', complaints.filter((c) => !c.reviewStatus).length],
-    ['requests', 'Data requests', requests.filter((r) => r.status === 'open').length],
+    ['pending', 'Pending', groups.pending.length, true],
+    ['approved', 'Approved', groups.approved.length, false],
+    ['closed', 'Rejected / removed', groups.closed.length, false],
+    ['complaints', 'Complaints to review', complaints.filter((c) => !c.reviewStatus).length, true],
+    ['requests', 'Data requests', requests.filter((r) => r.status === 'open').length, true],
   ]
 
   const openSupplier = (status) => setTab(status === 'approved' ? 'approved' : status === 'pending' ? 'pending' : 'closed')
@@ -429,44 +535,92 @@ export default function Admin() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-1 text-2xl font-semibold text-emerald-brand">Admin: suppliers</h1>
-      <p className="mb-6 text-sm">
-        Approving a supplier makes their listings visible to customers. Rejecting or removing hides them.
-      </p>
-      <div className="mb-6 flex flex-wrap items-center gap-4 text-sm">
-        <Link to="/admin/reports" className="text-emerald-brand underline">Payments and reports</Link>
-        <button onClick={exportExcel}
-          className="rounded-full border border-gold-deep px-4 py-2 text-gold-deep">
-          Download suppliers and complaints (Excel)
-        </button>
-      </div>
-      {exportError && <p className="mb-4 text-sm text-red-700">{exportError}</p>}
+    <div className="bg-cream">
+      <header className="border-b-4 border-gold bg-emerald-brand px-5 pb-8 pt-9 text-cream sm:px-8 sm:pb-10 sm:pt-12">
+        <div className="mx-auto max-w-4xl">
+          <h1 className="font-display text-3xl font-semibold leading-tight sm:text-4xl">Admin: suppliers</h1>
+          <p className="mt-2 max-w-2xl text-sm text-cream/85 sm:text-base">
+            Approving a supplier makes their listings visible to customers. Rejecting or removing hides them.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link
+              to="/admin/reports"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-gold px-5 py-2 text-sm font-semibold text-emerald-brand transition hover:bg-gold/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cream focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-brand"
+            >
+              <Icon name="chart" />
+              Payments and reports
+            </Link>
+            <button
+              onClick={exportExcel}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-cream/60 px-5 py-2 text-sm font-medium text-cream transition hover:bg-cream hover:text-emerald-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-cream"
+            >
+              <Icon name="download" />
+              Download suppliers and complaints (Excel)
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <div className="mb-6 flex flex-wrap gap-3">
-        {tabs.map(([v, label, n]) => (
-          <button key={v} onClick={() => setTab(v)}
-            className={`rounded-full px-4 py-2 text-sm ${
-              tab === v ? 'bg-emerald-brand text-cream' : 'border border-gold-deep text-gold-deep'}`}>
-            {label} ({n})
-          </button>
-        ))}
-      </div>
+      <main className="mx-auto max-w-4xl px-5 pb-16 pt-6 sm:px-8 sm:pt-8">
+        {exportError && (
+          <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {exportError}
+          </p>
+        )}
 
-      {tab === 'requests' ? (
-        <DataRequests requests={requests} />
-      ) : tab === 'complaints' ? (
-        <Complaints complaints={complaints} sellers={sellers} validCounts={validCounts} onOpenSupplier={openSupplier} />
-      ) : (
-        <>
-          {groups[tab].length === 0 && <p className="text-sm">Nobody here.</p>}
-          <ul className="flex flex-col gap-3">
-            {groups[tab].map((s) => (
-              <SellerCard key={s.id} seller={s} status={statusOf(s)} complaintCount={counts[s.id] || 0} strikes={validCounts[s.id] || 0} />
-            ))}
-          </ul>
-        </>
-      )}
-    </main>
+        <div
+          className="-mx-5 mb-6 flex gap-2 overflow-x-auto px-5 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+          role="group"
+          aria-label="Admin sections"
+        >
+          {tabs.map(([v, label, n, attention]) => (
+            <button
+              key={v}
+              onClick={() => setTab(v)}
+              aria-pressed={tab === v}
+              className={`inline-flex min-h-[44px] flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 ${
+                tab === v
+                  ? 'bg-emerald-brand text-cream'
+                  : 'border border-gold-deep bg-white text-gold-deep hover:bg-cream'}`}
+            >
+              {label}
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  attention && n > 0
+                    ? 'bg-gold text-emerald-brand'
+                    : tab === v
+                      ? 'bg-cream/20 text-cream'
+                      : 'bg-cream text-gold-deep'}`}
+              >
+                {n}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {tab === 'requests' ? (
+          <DataRequests requests={requests} />
+        ) : tab === 'complaints' ? (
+          <Complaints complaints={complaints} sellers={sellers} validCounts={validCounts} onOpenSupplier={openSupplier} />
+        ) : (
+          <>
+            {groups[tab].length === 0 && (
+              <p className="rounded-2xl border border-gold/40 bg-white p-6 text-center text-sm">Nobody here.</p>
+            )}
+            <ul className="flex flex-col gap-4">
+              {groups[tab].map((s) => (
+                <SellerCard
+                  key={s.id}
+                  seller={s}
+                  status={statusOf(s)}
+                  complaintCount={counts[s.id] || 0}
+                  strikes={validCounts[s.id] || 0}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </main>
+    </div>
   )
 }
