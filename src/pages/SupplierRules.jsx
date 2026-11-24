@@ -73,7 +73,7 @@ const RULES = {
     {
       heading: '6. Orders, bookings and payment',
       bullets: [
-        'Customers send you a request. Accept or decline it as soon as you can. Customers cannot pay until you accept.',
+        'Customers send you a request. Accept or decline it as soon as you can. When you accept, confirm the delivery cost if there is one. Customers cannot pay until you accept.',
         'Accepting an order takes the quantity off your stock. If you cancel an accepted order that has not been paid, the stock is returned.',
         'Once the customer has paid through PayFast, you will be emailed and can go ahead. You may only mark an order shipped or a booking completed after the customer has paid.',
         'A paid order or booking cannot be cancelled by you on Zolara. Please contact the Zolara team if there is a problem.',
@@ -81,7 +81,27 @@ const RULES = {
       ],
     },
     {
-      heading: '7. Refunds',
+      heading: '7. Delivery and shipping',
+      paras: [
+        'You arrange and manage delivery of your own orders. Zolara does not ship items for you. The customer pays the delivery cost, and for each listing you choose how it works:',
+      ],
+      options: [
+        { title: 'Collection only', text: 'The customer collects from you, so there is no delivery cost.' },
+        { title: 'Flat delivery fee', text: 'You set a fixed fee, and the customer sees it before they pay.' },
+        { title: 'Free delivery', text: 'You cover delivery, for example on orders above a minimum value.' },
+      ],
+      bullets: [
+        'Services do not have shipping. If you charge a travel or call-out fee, state it clearly in your listing.',
+        'If an order is large, heavy or needs special handling, confirm the exact delivery cost when you accept the request, before the customer pays.',
+        'The customer pays the item price and the delivery cost together in one PayFast payment. The delivery cost is paid to you as part of the sale.',
+        'Pack orders properly, use a tracked or insured method where you can, and ship within the time stated in your listing.',
+        'Mark the order shipped once it is on its way, and delivered once it arrives. Keep proof of postage or delivery in case of a dispute.',
+        'The order is your responsibility until the customer receives it. If it is lost or damaged in transit, you sort it out with the customer and the courier.',
+        'If an item is faulty or not as described, you pay the return shipping. For any other return, say in your listing who pays.',
+      ],
+    },
+    {
+      heading: '8. Refunds',
       bullets: [
         'A customer can ask Zolara for a refund on a paid order or booking. Zolara reviews each request.',
         'While a refund request is open, do not ship the order or mark the booking completed until Zolara has decided.',
@@ -89,19 +109,19 @@ const RULES = {
       ],
     },
     {
-      heading: '8. Customer details',
+      heading: '9. Customer details',
       paras: [
         'You will see customers’ names, emails, phone numbers and addresses so you can fulfil their order or booking. Use them only for that purpose, and never share them or use them for anything else.',
       ],
     },
     {
-      heading: '9. Customer feedback and complaints',
+      heading: '10. Customer feedback and complaints',
       paras: [
         'After a service is completed or an order is delivered, customers can tell us whether they were satisfied. We take service seriously, and we read every complaint. A satisfaction score appears on your profile once you have enough reviews.',
       ],
     },
     {
-      heading: '10. Warnings and removal',
+      heading: '11. Warnings and removal',
       paras: [
         `We review each complaint before it counts, and you can respond to a complaint before a decision is made. Valid complaints are handled in steps, counted over a rolling ${STRIKE_WINDOW_DAYS} days:`,
       ],
@@ -113,30 +133,30 @@ const RULES = {
       ],
     },
     {
-      heading: '11. Fair play',
+      heading: '12. Fair play',
       paras: [
         `Zolara is owned by ${OWNER}. R&R Site Solutions, a division of ${OWNER}, also sells on Zolara as its founding supplier and a preferred supplier, and its listings may be shown first and marked as such. It competes with other suppliers on the same terms as everyone else. Zolara uses administrator access to bookings, orders and supplier details only to run the marketplace, and not for the benefit of any supplier.`,
       ],
     },
     {
-      heading: '12. Fees and payouts',
+      heading: '13. Fees and payouts',
       bullets: [
         `Your first ${FREE_MONTHS} months after approval are free. After that, the supplier access fee is ${MONTHLY_FEE} per month, deducted from your balance.`,
-        'Zolara takes no commission on your sales.',
-        'PayFast, our payment provider, charges a processing fee on every customer payment. The fee depends on how the customer pays, for example by card or Instant EFT. We deduct the exact fee PayFast charged from what we pay you for that sale, and it shows on your Payments page.',
+        'Zolara takes no commission on your sales, or on the delivery cost the customer pays you.',
+        'PayFast, our payment provider, charges a processing fee on every customer payment, including the delivery cost. The fee depends on how the customer pays, for example by card or Instant EFT. We deduct the exact fee PayFast charged from what we pay you for that sale, and it shows on your Payments page.',
         'Zolara pays your earnings every two weeks into the bank account you give us, after PayFast fees, your subscription and any other amount you owe are deducted. Keep your banking details accurate. We may delay a payout while we confirm a change to them.',
       ],
     },
     {
-      heading: '13. Your responsibilities',
+      heading: '14. Your responsibilities',
       paras: [
         'You are responsible for your own taxes, licences, insurance and compliance with the law, including the Consumer Protection Act 68 of 2008 in the way you sell.',
       ],
     },
     {
-      heading: '14. Zolara’s role',
+      heading: '15. Zolara’s role',
       paras: [
-        'Zolara is a marketplace that connects customers with independent suppliers. Suppliers, not Zolara, provide the products and services listed and are responsible for delivery, timing and quality. To the extent the law allows, Zolara is not responsible for delays or problems with a supplier’s products or services, including where a supplier does not deliver. Nothing in these rules limits any rights a customer has under South African law.',
+        'Zolara is a marketplace that connects customers with independent suppliers. Suppliers, not Zolara, provide the products and services listed and are responsible for delivery, timing and quality, including courier delays, loss and damage. To the extent the law allows, Zolara is not responsible for delays or problems with a supplier’s products or services, including where a supplier does not deliver. Nothing in these rules limits any rights a customer has under South African law.',
       ],
     },
   ],
@@ -151,9 +171,9 @@ const FACTS = [
 
 const TIMELINE = [
   { title: 'Request', text: 'Customer sends it' },
-  { title: 'Accept', text: 'You say yes' },
+  { title: 'Accept', text: 'You confirm price and delivery' },
   { title: 'Payment', text: 'Customer pays on PayFast' },
-  { title: 'Fulfil', text: 'You ship or complete' },
+  { title: 'Fulfil', text: 'You ship or complete the service' },
   { title: 'Delivered', text: 'You mark it done' },
   { title: 'Balance', text: 'The sale counts to you' },
 ]
@@ -165,6 +185,7 @@ const ICON_KEYS = [
   'ban',
   'star',
   'bag',
+  'truck',
   'refund',
   'lock',
   'chat',
@@ -182,6 +203,7 @@ const ICONS = {
   ban: 'M12 21a9 9 0 100-18 9 9 0 000 18z M5.6 5.6l12.8 12.8',
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
   bag: 'M5 8h14l-1 12H6z M9 8V6a3 3 0 016 0v2',
+  truck: 'M3 6h11v10H3z M14 10h4l3 3v3h-7 M7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z M17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
   refund: 'M4 12a8 8 0 018-8 8 8 0 016 2.7L20 8 M20 4v4h-4 M20 12a8 8 0 01-8 8 8 8 0 01-6-2.7L4 16 M4 20v-4h4',
   lock: 'M6 11h12v9H6z M8 11V8a4 4 0 018 0v3',
   chat: 'M4 5h16v11H9l-5 4z',
@@ -267,6 +289,19 @@ function Timeline() {
   )
 }
 
+function Options({ items }) {
+  return (
+    <ul className="sr-options">
+      {items.map((item) => (
+        <li key={item.title} className="sr-option">
+          <span className="sr-option-t">{item.title}</span>
+          <span className="sr-option-d">{item.text}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function Strikes({ items }) {
   return (
     <ol className="sr-strikes">
@@ -324,7 +359,17 @@ function Body({ section, index }) {
     )
   }
 
-  if (index === 9) {
+  if (index === 6) {
+    return (
+      <>
+        {paraEls}
+        <Options items={section.options} />
+        <DotList items={bullets} />
+      </>
+    )
+  }
+
+  if (index === 10) {
     return (
       <>
         {paraEls}
@@ -936,6 +981,30 @@ const STYLES = `
 .sr-timeline-t { font-weight: 700; color: var(--emerald); line-height: 1.3; align-self: end; }
 .sr-timeline-d { color: var(--muted); font-size: 0.92rem; line-height: 1.4; }
 
+.sr-options {
+  list-style: none;
+  margin: 14px 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.sr-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--gold);
+}
+.sr-option-t {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  color: var(--emerald);
+}
+.sr-option-d { font-size: 0.95rem; }
+
 .sr-strikes {
   list-style: none;
   margin: 14px 0 0;
@@ -1011,6 +1080,7 @@ const STYLES = `
   .sr-layout { padding: 28px 32px 88px; }
   .sr-iconlist { grid-template-columns: 1fr 1fr; }
   .sr-strikes { grid-template-columns: repeat(3, 1fr); }
+  .sr-options { grid-template-columns: repeat(3, 1fr); }
   .sr-panel-body { padding: 4px 24px 26px 24px; }
   .sr-item-btn { padding: 16px 22px; }
 }
