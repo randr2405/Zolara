@@ -17,6 +17,40 @@ const ENTRY_LABEL = {
   adjustment: 'Adjustment',
 }
 
+const btn =
+  'inline-flex min-h-[44px] items-center justify-center rounded-full px-5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 disabled:opacity-60'
+const btnPrimary = `${btn} bg-emerald-brand text-cream hover:bg-emerald-brand/90`
+const btnGold = `${btn} border border-gold-deep text-gold-deep hover:bg-gold-deep hover:text-white`
+
+const dateField =
+  'mt-1 block min-h-[44px] w-full rounded-xl border border-gold/50 bg-white px-3 py-2 text-base text-charcoal focus:border-gold-deep focus:outline-none focus:ring-2 focus:ring-gold'
+
+const STATUS_STYLE = {
+  pending: 'bg-cream text-gold-deep ring-1 ring-gold/60',
+  approved: 'bg-emerald-brand text-cream',
+  rejected: 'bg-red-100 text-red-800',
+  removed: 'bg-red-100 text-red-800',
+}
+
+function Metric({ label, value }) {
+  return (
+    <div className="rounded-xl bg-cream px-3 py-2">
+      <p className="text-xs text-gold-deep">{label}</p>
+      <p className="text-sm font-semibold">{value}</p>
+    </div>
+  )
+}
+
+function Detail({ label, value }) {
+  if (!value) return null
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-medium text-gold-deep">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm">{value}</dd>
+    </div>
+  )
+}
+
 export default function AdminReports() {
   const { user } = useAuth()
   const initial = fortnightFor()
@@ -232,7 +266,13 @@ export default function AdminReports() {
     }
   }
 
-  if (!sellers) return <p className="p-6 text-center">{error || 'Loading…'}</p>
+  if (!sellers) {
+    return (
+      <p role="status" className="p-10 text-center text-emerald-brand">
+        {error || 'Loading…'}
+      </p>
+    )
+  }
 
   const totals = {
     period: sum(rows, (r) => r.periodSales),
@@ -246,144 +286,220 @@ export default function AdminReports() {
     const t = millis(p.paidAt || p.createdAt)
     return p.status !== 'pending' && t >= startOfDay(from) && t <= endOfDay(to)
   })
-  const input = 'rounded-lg border border-gold/50 bg-white p-2 text-sm'
+
+  const summary = [
+    ['Sales in period', formatZAR(totals.period)],
+    ['PayFast fees', formatZAR(-totals.fees)],
+    ['Subscriptions charged', formatZAR(-totals.subs)],
+    ['Paid out', formatZAR(-totals.paid)],
+  ]
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-emerald-brand">Payments and reports</h1>
-        <Link to="/admin" className="text-sm text-emerald-brand underline">Back to suppliers</Link>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-xs">From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${input} mt-1 block`} /></label>
-        <label className="text-xs">To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`${input} mt-1 block`} /></label>
-        <button onClick={() => { setFrom(toInputDate(initial.start)); setTo(toInputDate(initial.end)) }}
-          className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep">Current fortnight</button>
-        <button onClick={exportExcel} className="rounded-full bg-emerald-brand px-4 py-2 text-sm text-cream">Export Excel</button>
-        <button onClick={exportCsv} className="rounded-full border border-gold-deep px-4 py-2 text-sm text-gold-deep">Export CSV</button>
-      </div>
-
-      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
-
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-        {[
-          ['Sales in period', formatZAR(totals.period)],
-          ['PayFast fees', formatZAR(-totals.fees)],
-          ['Subscriptions charged', formatZAR(-totals.subs)],
-          ['Paid out', formatZAR(-totals.paid)],
-          ['Total owed to suppliers', formatZAR(totals.balance)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl bg-white p-4">
-            <p className="text-xs text-gold-deep">{label}</p>
-            <p className="text-lg font-semibold">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {rows.length === 0 && <p className="text-sm">No suppliers yet.</p>}
-
-      <ul className="flex flex-col gap-3">
-        {rows.map((r) => {
-          const bank = banks[r.seller.id]
-          const changedRecently = bank?.updatedAt && Date.now() - millis(bank.updatedAt) < 7 * 24 * 60 * 60 * 1000
-          return (
-            <li key={r.seller.id} className="rounded-xl bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">{r.seller.businessName}</p>
-                  <p className="text-xs">{r.status} · {bank ? 'Banking details on file' : 'No banking details yet'}</p>
-                </div>
-                <p className="text-lg font-semibold text-emerald-brand">{formatZAR(r.balance)}</p>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
-                <p>Period sales<br /><span className="text-sm">{formatZAR(r.periodSales)}</span></p>
-                <p>All sales<br /><span className="text-sm">{formatZAR(r.earned)}</span></p>
-                <p>PayFast fees<br /><span className="text-sm">{formatZAR(-r.fees)}</span></p>
-                <p>Subscriptions<br /><span className="text-sm">{formatZAR(r.subscriptions)}</span></p>
-                <p>Paid out<br /><span className="text-sm">{formatZAR(r.paid)}</span></p>
-                <p>Adjustments<br /><span className="text-sm">{formatZAR(r.adjustments)}</span></p>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                <button onClick={() => recordPayout(r)} className="rounded-full bg-emerald-brand px-4 py-2 text-cream">Record payout</button>
-                <button onClick={() => chargeSubscription(r)} className="rounded-full border border-gold-deep px-4 py-2 text-gold-deep">Charge subscription</button>
-                <button onClick={() => addAdjustment(r)} className="rounded-full border border-gold-deep px-4 py-2 text-gold-deep">Adjust</button>
-                <button onClick={() => setOpen(open === r.seller.id ? '' : r.seller.id)} className="text-emerald-brand underline">
-                  {open === r.seller.id ? 'Hide details' : 'Banking and history'}
-                </button>
-              </div>
-
-              {open === r.seller.id && (
-                <div className="mt-3 border-t border-gold/40 pt-3 text-sm">
-                  {bank ? (
-                    <>
-                      {changedRecently && (
-                        <p className="mb-2 rounded-lg border border-red-700 p-2 text-xs text-red-700">
-                          Banking details changed on {formatDate(bank.updatedAt)}. Confirm with the supplier by phone before paying.
-                        </p>
-                      )}
-                      <p>{bank.accountHolder}</p>
-                      <p>{bank.bankName} · {bank.accountType}</p>
-                      <p>Account {bank.accountNumber} · Branch {bank.branchCode}</p>
-                    </>
-                  ) : (
-                    <p>This supplier has not added banking details.</p>
-                  )}
-                  <ul className="mt-3 flex flex-col gap-1 text-xs">
-                    {[...r.entries].sort((a, b) => millis(b.createdAt) - millis(a.createdAt)).map((l) => (
-                      <li key={l.id}>{formatDate(l.createdAt)} · {l.type} · {formatZAR(l.effectCents)}{l.note ? ` · ${l.note}` : ''}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-semibold text-emerald-brand">Payments</h2>
-        {attention.length > 0 && (
-          <div className="mb-4 rounded-xl border border-red-700 bg-white p-4">
-            <p className="mb-2 text-sm font-medium text-red-700">
-              Needs attention: paid, but the booking or order was cancelled or removed
+    <div className="bg-cream">
+      <header className="border-b-4 border-gold bg-emerald-brand px-5 pb-8 pt-9 text-cream sm:px-8 sm:pb-10 sm:pt-12">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-semibold leading-tight sm:text-4xl">Payments and reports</h1>
+            <p className="mt-2 text-sm text-cream/85 sm:text-base">
+              {from} to {to}
             </p>
-            <ul className="flex flex-col gap-1 text-xs">
-              {attention.map((p) => (
-                <li key={p.id}>
-                  {formatDate(p.paidAt)} · {p.sellerName} · {p.title} · {formatZAR(p.amountCents)} ·
-                  PayFast ref {p.pfPaymentId || '-'}. Refund in the PayFast dashboard, then add an Adjustment.
-                </li>
-              ))}
-            </ul>
           </div>
-        )}
-        {periodPayments.length === 0 && <p className="text-sm">No payments in this period.</p>}
-        <ul className="flex flex-col gap-2">
-          {periodPayments.map((p) => (
-            <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3 text-sm">
-              <div>
-                <p className="font-medium">{p.title} <span className="text-xs">({p.kind})</span></p>
-                <p className="text-xs text-gold-deep">
-                  {formatDate(p.paidAt || p.createdAt)} · {p.sellerName} · {p.status}
-                  {p.needsAttention ? ' · NEEDS ATTENTION' : ''}
-                </p>
-              </div>
-              <div className="text-right">
-                <p>{formatZAR(p.amountCents)}</p>
-                {p.feeCents > 0 && <p className="text-xs text-gold-deep">Fee {formatZAR(p.feeCents)}</p>}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+          <Link
+            to="/admin"
+            className="inline-flex min-h-[44px] items-center rounded-full border border-cream/60 px-5 py-2 text-sm font-medium text-cream transition hover:bg-cream hover:text-emerald-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-cream"
+          >
+            Back to suppliers
+          </Link>
+        </div>
+      </header>
 
-      <p className="mt-6 text-xs">
-        Sales count when the customer has paid through PayFast and the booking is completed or the
-        order is delivered. PayFast fees are deducted from each supplier’s balance.
-      </p>
-    </main>
+      <main className="mx-auto max-w-5xl px-5 pb-16 pt-6 sm:px-8 sm:pt-8">
+        <div className="mb-6 rounded-2xl border border-gold/40 bg-white p-4 shadow-sm sm:p-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
+            <label className="block text-sm font-medium text-emerald-brand">
+              From
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={dateField} />
+            </label>
+            <label className="block text-sm font-medium text-emerald-brand">
+              To
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={dateField} />
+            </label>
+            <div className="flex items-end">
+              <button
+                onClick={() => { setFrom(toInputDate(initial.start)); setTo(toInputDate(initial.end)) }}
+                className={`${btnGold} w-full lg:w-auto`}
+              >
+                Current fortnight
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3 border-t border-gold/30 pt-4">
+            <button onClick={exportExcel} className={btnPrimary}>Export Excel</button>
+            <button onClick={exportCsv} className={btnGold}>Export CSV</button>
+          </div>
+        </div>
+
+        {error && (
+          <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
+          </p>
+        )}
+
+        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {summary.map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-gold/40 bg-white p-4 shadow-sm">
+              <p className="text-xs text-gold-deep">{label}</p>
+              <p className="mt-1 font-display text-xl font-semibold text-emerald-brand">{value}</p>
+            </div>
+          ))}
+          <div className="col-span-2 rounded-2xl border-b-4 border-gold bg-emerald-brand p-4 text-cream shadow-sm lg:col-span-1">
+            <p className="text-xs text-cream/80">Total owed to suppliers</p>
+            <p className="mt-1 font-display text-xl font-semibold">{formatZAR(totals.balance)}</p>
+          </div>
+        </div>
+
+        <h2 className="mb-3 font-display text-2xl font-semibold text-emerald-brand">Suppliers</h2>
+        {rows.length === 0 && (
+          <p className="rounded-2xl border border-gold/40 bg-white p-6 text-center text-sm">No suppliers yet.</p>
+        )}
+
+        <ul className="flex flex-col gap-4">
+          {rows.map((r) => {
+            const bank = banks[r.seller.id]
+            const changedRecently = bank?.updatedAt && Date.now() - millis(bank.updatedAt) < 7 * 24 * 60 * 60 * 1000
+            const isOpen = open === r.seller.id
+            return (
+              <li key={r.seller.id} className="rounded-2xl border border-gold/40 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words font-semibold text-emerald-brand">{r.seller.businessName}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className={`rounded-full px-3 py-0.5 text-xs font-medium capitalize ${STATUS_STYLE[r.status] || STATUS_STYLE.pending}`}>
+                        {r.status}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-0.5 text-xs font-medium ${
+                          bank ? 'bg-cream text-emerald-brand ring-1 ring-gold/60' : 'bg-red-100 text-red-800'}`}
+                      >
+                        {bank ? 'Banking details on file' : 'No banking details yet'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gold-deep">Balance owed</p>
+                    <p className="font-display text-2xl font-semibold text-emerald-brand">{formatZAR(r.balance)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                  <Metric label="Period sales" value={formatZAR(r.periodSales)} />
+                  <Metric label="All sales" value={formatZAR(r.earned)} />
+                  <Metric label="PayFast fees" value={formatZAR(-r.fees)} />
+                  <Metric label="Subscriptions" value={formatZAR(r.subscriptions)} />
+                  <Metric label="Paid out" value={formatZAR(r.paid)} />
+                  <Metric label="Adjustments" value={formatZAR(r.adjustments)} />
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button onClick={() => recordPayout(r)} className={btnPrimary}>Record payout</button>
+                  <button onClick={() => chargeSubscription(r)} className={btnGold}>Charge subscription</button>
+                  <button onClick={() => addAdjustment(r)} className={btnGold}>Adjust</button>
+                  <button
+                    onClick={() => setOpen(isOpen ? '' : r.seller.id)}
+                    aria-expanded={isOpen}
+                    className="inline-flex min-h-[44px] items-center rounded-full px-3 text-sm font-medium text-emerald-brand underline focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                  >
+                    {isOpen ? 'Hide details' : 'Banking and history'}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div className="mt-4 border-t border-gold/40 pt-4">
+                    {bank ? (
+                      <>
+                        {changedRecently && (
+                          <p role="alert" className="mb-3 rounded-xl border border-red-700 bg-red-50 px-4 py-3 text-sm text-red-800">
+                            Banking details changed on {formatDate(bank.updatedAt)}. Confirm with the supplier by phone before paying.
+                          </p>
+                        )}
+                        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                          <Detail label="Account holder" value={bank.accountHolder} />
+                          <Detail label="Bank" value={bank.bankName} />
+                          <Detail label="Account type" value={bank.accountType} />
+                          <Detail label="Account number" value={bank.accountNumber} />
+                          <Detail label="Branch code" value={bank.branchCode} />
+                        </dl>
+                      </>
+                    ) : (
+                      <p className="rounded-xl bg-cream px-4 py-3 text-sm">This supplier has not added banking details.</p>
+                    )}
+                    {r.entries.length > 0 && (
+                      <ul className="mt-4 flex flex-col gap-1.5 text-sm">
+                        {[...r.entries].sort((a, b) => millis(b.createdAt) - millis(a.createdAt)).map((l) => (
+                          <li key={l.id} className="rounded-lg bg-cream px-3 py-2 text-xs sm:text-sm">
+                            {formatDate(l.createdAt)} · {l.type} · {formatZAR(l.effectCents)}{l.note ? ` · ${l.note}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+
+        <section className="mt-10">
+          <h2 className="mb-3 font-display text-2xl font-semibold text-emerald-brand">Payments</h2>
+          {attention.length > 0 && (
+            <div className="mb-4 rounded-2xl border border-red-700 bg-white p-4 sm:p-5">
+              <p className="mb-2 text-sm font-semibold text-red-800">
+                Needs attention: paid, but the booking or order was cancelled or removed
+              </p>
+              <ul className="flex flex-col gap-2 text-sm">
+                {attention.map((p) => (
+                  <li key={p.id} className="rounded-lg bg-red-50 px-3 py-2">
+                    {formatDate(p.paidAt)} · {p.sellerName} · {p.title} · {formatZAR(p.amountCents)} ·
+                    PayFast ref {p.pfPaymentId || '-'}. Refund in the PayFast dashboard, then add an Adjustment.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {periodPayments.length === 0 && (
+            <p className="rounded-2xl border border-gold/40 bg-white p-6 text-center text-sm">
+              No payments in this period.
+            </p>
+          )}
+          <ul className="flex flex-col gap-2">
+            {periodPayments.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gold/40 bg-white p-4 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="break-words font-medium">
+                    {p.title} <span className="text-xs text-gold-deep">({p.kind})</span>
+                  </p>
+                  <p className="text-xs text-gold-deep">
+                    {formatDate(p.paidAt || p.createdAt)} · {p.sellerName} · {p.status}
+                    {p.needsAttention ? ' · NEEDS ATTENTION' : ''}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">{formatZAR(p.amountCents)}</p>
+                  {p.feeCents > 0 && <p className="text-xs text-gold-deep">Fee {formatZAR(p.feeCents)}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <p className="mt-8 rounded-xl border-l-4 border-gold bg-white px-4 py-3 text-xs leading-relaxed sm:text-sm">
+          Sales count when the customer has paid through PayFast and the booking is completed or the
+          order is delivered. PayFast fees are deducted from each supplier’s balance.
+        </p>
+      </main>
+    </div>
   )
 }
