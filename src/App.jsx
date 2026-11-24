@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { FavouritesProvider } from './context/FavouritesContext.jsx'
 import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
+import SiteCursor from './components/SiteCursor.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import AdminRoute from './components/AdminRoute.jsx'
 import BookingForm from './components/BookingForm.jsx'
@@ -39,6 +40,7 @@ export default function App() {
     <AuthProvider>
       <FavouritesProvider>
         <div className="flex min-h-screen flex-col">
+          <SiteCursor />
           <Navbar />
           <div className="flex-1">
             <Routes>
