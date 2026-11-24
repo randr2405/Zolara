@@ -1,0 +1,41 @@
+.zolara-gooey {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.zolara-gooey::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .zolara-gooey {
+    overflow: visible;
+  }
+}
+
+.zolara-gooey .gooey-nav__canvas,
+.zolara-gooey .gooey-nav__fallback,
+.zolara-gooey .gooey-nav__list--active {
+  transition: opacity 0.25s ease;
+}
+
+.zolara-gooey--idle .gooey-nav__canvas,
+.zolara-gooey--idle .gooey-nav__fallback,
+.zolara-gooey--idle .gooey-nav__list--active {
+  opacity: 0;
+}
+
+.zolara-gooey--idle .gooey-nav__link {
+  color: var(--gn-ink) !important;
+}
+
+.zolara-gooey .gooey-nav__link {
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.zolara-gooey .gooey-nav__link:focus-visible {
+  outline: 2px solid #A67C2E;
+  outline-offset: 2px;
+}

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import useIsAdmin from '../lib/useIsAdmin.js'
 import { CATALOG, mainCategories } from '../lib/constants.js'
+import ZolaraNavLinks from './ZolaraNavLinks.jsx'
 import logo from '../assets/zolara-logo.png'
 
 const item = 'block rounded px-3 py-2 text-sm hover:bg-cream'
@@ -163,7 +164,7 @@ export default function Navbar() {
       </div>
 
       <nav className="border-t border-gold/40 bg-cream">
-        <div className="relative mx-auto flex max-w-7xl items-center gap-6 overflow-x-auto px-4 py-2 md:overflow-visible">
+        <div className="relative mx-auto flex max-w-7xl items-center gap-4 overflow-x-auto px-4 py-2 md:overflow-visible">
           <details ref={dept}>
             <summary className="flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-emerald-brand px-4 py-1.5 text-sm font-medium text-cream">
               <span aria-hidden="true">☰</span> All departments
@@ -186,10 +187,7 @@ export default function Navbar() {
               ))}
             </div>
           </details>
-          <Link to="/shop?type=product" className={navLink}>Products</Link>
-          <Link to="/shop?type=service" className={navLink}>Services</Link>
-          <Link to="/shop?type=product&max=250" className={navLink}>Under R250</Link>
-          <Link to="/shop" className={navLink}>Everything</Link>
+          <ZolaraNavLinks />
         </div>
       </nav>
     </header>
