@@ -6,6 +6,7 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
+import { orderTotal } from '../lib/delivery.js'
 import { LEDGER_LABEL, formatDate, millis, sum } from '../lib/finance.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 
@@ -317,10 +318,22 @@ export default function SellerPayments() {
 
   const sales = [
     ...orders.map((o) => ({
-      id: o.id, title: o.listingTitle, kind: 'Order', cents: o.totalCents, fee: o.feeCents || 0, at: o.updatedAt || o.createdAt,
+      id: o.id,
+      title: o.listingTitle,
+      kind: 'Order',
+      cents: o.paidCents ?? orderTotal(o),
+      delivery: Number.isInteger(o.deliveryCents) ? o.deliveryCents : 0,
+      fee: o.feeCents || 0,
+      at: o.updatedAt || o.createdAt,
     })),
     ...bookings.map((b) => ({
-      id: b.id, title: b.listingTitle, kind: 'Booking', cents: b.priceCents, fee: b.feeCents || 0, at: b.updatedAt || b.createdAt,
+      id: b.id,
+      title: b.listingTitle,
+      kind: 'Booking',
+      cents: b.paidCents ?? b.priceCents,
+      delivery: 0,
+      fee: b.feeCents || 0,
+      at: b.updatedAt || b.createdAt,
     })),
   ].sort((a, b) => millis(b.at) - millis(a.at))
 
@@ -338,7 +351,7 @@ export default function SellerPayments() {
         {
           name: 'Summary',
           title: 'Zolara · Supplier statement',
-          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}. A sale counts once it is paid and the booking is completed or the order is delivered.`,
+          subtitle: `Generated ${new Date().toLocaleDateString('en-ZA')}. A sale counts once it is paid and the booking is completed or the order is delivered. Order amounts include the delivery cost.`,
           columns: [
             { header: 'Measure', key: 'measure', width: 30 },
             { header: 'Amount', key: 'amount', type: 'cents', width: 22 },
@@ -372,12 +385,13 @@ export default function SellerPayments() {
         {
           name: 'Completed sales',
           title: 'Zolara · Completed sales',
-          subtitle: 'Paid bookings marked completed and paid orders marked delivered.',
+          subtitle: 'Paid bookings marked completed and paid orders marked delivered. Amount includes delivery.',
           columns: [
             { header: 'Date', key: 'date', type: 'datetime', width: 20 },
             { header: 'Item', key: 'item', width: 34 },
             { header: 'Type', key: 'kind', width: 14 },
             { header: 'Amount', key: 'amount', type: 'cents', width: 18, total: true },
+            { header: 'of which delivery', key: 'delivery', type: 'cents', width: 18, total: true },
             { header: 'PayFast fee', key: 'fee', type: 'cents', width: 16, total: true },
             { header: 'You receive', key: 'net', type: 'cents', width: 18, total: true },
           ],
@@ -386,6 +400,7 @@ export default function SellerPayments() {
             item: s.title,
             kind: s.kind,
             amount: s.cents,
+            delivery: s.delivery,
             fee: -s.fee,
             net: (s.cents || 0) - s.fee,
           })),
@@ -484,8 +499,9 @@ export default function SellerPayments() {
               {showHow && (
                 <p className="mt-2 rounded-xl border-l-4 border-gold bg-white px-4 py-3 text-sm text-charcoal/80 shadow-sm">
                   A sale counts once the customer has paid through PayFast and the booking is marked completed
-                  or the order is marked delivered. Zolara pays your balance every two weeks, after PayFast’s
-                  fee on each sale and the R250 monthly subscription are deducted.
+                  or the order is marked delivered. For orders, the delivery cost the customer paid is part of
+                  the sale. Zolara pays your balance every two weeks, after PayFast’s fee on each sale and the
+                  R250 monthly subscription are deducted.
                 </p>
               )}
             </div>
@@ -569,6 +585,9 @@ export default function SellerPayments() {
                 </div>
                 <div className="flex-none text-right">
                   <p className="text-sm font-semibold text-emerald-brand">{formatZAR(s.cents)}</p>
+                  {s.delivery > 0 && (
+                    <p className="text-xs text-charcoal/70">incl. {formatZAR(s.delivery)} delivery</p>
+                  )}
                   {s.fee > 0 && (
                     <>
                       <p className="text-xs text-gold-deep">PayFast fee {formatZAR(-s.fee)}</p>

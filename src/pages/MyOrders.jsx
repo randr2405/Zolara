@@ -7,6 +7,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
+import { deliveryOf, hasDeliveryCost, orderTotal } from '../lib/delivery.js'
 import { downloadWorkbook, stampDate } from '../lib/reportExport.js'
 import { paymentErrorMessage, startPayment } from '../lib/payments.js'
 import { notify } from '../lib/notify.js'
@@ -56,10 +57,17 @@ function Icon({ name, size = 18 }) {
 
 const isClosed = (o) => o.status === 'cancelled' || o.status === 'declined'
 
+function deliveryTypeLabel(o) {
+  if (o.deliveryType === 'collection') return 'Collection only'
+  if (o.deliveryType === 'free') return 'Free delivery'
+  if (o.deliveryType === 'flat') return 'Flat delivery fee'
+  return ''
+}
+
 function nextStep(o, hasFeedback) {
   const paid = o.paymentStatus === 'paid'
-  if (o.status === 'requested') return 'Waiting for the supplier to confirm your order.'
-  if (o.status === 'confirmed' && !paid) return 'Confirmed. Pay now to secure your order.'
+  if (o.status === 'requested') return 'Waiting for the supplier to confirm your order and the delivery cost.'
+  if (o.status === 'confirmed' && !paid) return 'Confirmed. Check the total below, then pay now to secure your order.'
   if (o.status === 'confirmed' && paid) return 'Confirmed and paid.'
   if (o.status === 'declined') return 'The supplier could not fulfil this order.'
   if (o.status === 'cancelled') return 'You cancelled this order.'
@@ -192,6 +200,7 @@ function OrderCard({ order: o, feedback, user }) {
   const canCancel = o.status === 'requested'
   const ordered = o.createdAt?.toDate?.().toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
   const reference = o.id.slice(0, 8).toUpperCase()
+  const showBreakdown = hasDeliveryCost(o) && !isClosed(o)
 
   async function pay() {
     setError('')
@@ -261,11 +270,28 @@ function OrderCard({ order: o, feedback, user }) {
 
         <div className="flex-none text-right">
           <p className="text-xs text-charcoal/60">Total</p>
-          <p className="text-sm font-semibold text-emerald-brand">{formatZAR(o.totalCents)}</p>
+          <p className="text-sm font-semibold text-emerald-brand">{formatZAR(orderTotal(o))}</p>
         </div>
       </div>
 
       <p className="mt-3 text-sm text-charcoal/80">{nextStep(o, Boolean(feedback))}</p>
+
+      {showBreakdown && (
+        <div className="mt-3 rounded-xl bg-cream px-4 py-3 text-sm">
+          <div className="flex justify-between">
+            <span>Items</span>
+            <span>{formatZAR(o.totalCents)}</span>
+          </div>
+          <div className="mt-1 flex justify-between">
+            <span>Delivery</span>
+            <span>{deliveryOf(o) > 0 ? formatZAR(deliveryOf(o)) : o.deliveryType === 'collection' ? 'Collection' : 'Free'}</span>
+          </div>
+          <div className="mt-2 flex justify-between border-t border-gold/40 pt-2 font-medium text-emerald-brand">
+            <span>Total to pay</span>
+            <span>{formatZAR(orderTotal(o))}</span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -291,7 +317,7 @@ function OrderCard({ order: o, feedback, user }) {
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           {o.status === 'confirmed' && !paid && (
             <button disabled={paying} onClick={pay} className={`${btnPrimary} w-full sm:w-auto`}>
-              {paying ? 'Opening PayFast…' : `Pay now · ${formatZAR(o.totalCents)}`}
+              {paying ? 'Opening PayFast…' : `Pay now · ${formatZAR(orderTotal(o))}`}
             </button>
           )}
           {canCancel && (
@@ -343,7 +369,10 @@ function OrderCard({ order: o, feedback, user }) {
             <DetailRow label="Supplier" value={o.sellerName} />
             <DetailRow label="Quantity" value={o.quantity ? String(o.quantity) : ''} />
             <DetailRow label="Unit price" value={formatZAR(o.priceCents)} />
-            <DetailRow label="Total" value={formatZAR(o.totalCents)} />
+            <DetailRow label="Items total" value={formatZAR(o.totalCents)} />
+            <DetailRow label="Delivery option" value={deliveryTypeLabel(o)} />
+            <DetailRow label="Delivery cost" value={hasDeliveryCost(o) ? formatZAR(deliveryOf(o)) : ''} />
+            <DetailRow label="Total" value={formatZAR(orderTotal(o))} />
             <DetailRow label="Payment" value={paid ? 'Paid' : refunded ? 'Refunded' : 'Not paid'} />
             <DetailRow label="Order reference" value={reference} />
           </dl>
@@ -434,6 +463,8 @@ export default function MyOrders() {
             { header: 'Supplier', key: 'supplier', width: 26 },
             { header: 'Quantity', key: 'quantity', type: 'number', width: 10 },
             { header: 'Unit price', key: 'price', type: 'cents', width: 16 },
+            { header: 'Items total', key: 'items', type: 'cents', width: 16 },
+            { header: 'Delivery', key: 'delivery', type: 'cents', width: 16 },
             { header: 'Total', key: 'total', type: 'cents', width: 16 },
             { header: 'Status', key: 'status', width: 20 },
             { header: 'Payment', key: 'payment', width: 14 },
@@ -448,7 +479,9 @@ export default function MyOrders() {
               supplier: o.sellerName,
               quantity: o.quantity,
               price: o.priceCents,
-              total: o.totalCents,
+              items: o.totalCents,
+              delivery: deliveryOf(o),
+              total: orderTotal(o),
               status: ORDER_STATUS[o.status] || o.status,
               payment: o.paymentStatus === 'paid' ? 'Paid' : o.paymentStatus === 'refunded' ? 'Refunded' : 'Not paid',
               satisfied: f ? (f.satisfied ? 'Yes' : 'No') : '',

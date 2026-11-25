@@ -15,19 +15,28 @@ async function sellerEmail(sellerId) {
   }
 }
 
+function deliveryText(item) {
+  if (item.deliveryCents > 0) return zar(item.deliveryCents)
+  if (item.deliveryType === 'collection') return 'Collection only'
+  return 'Free'
+}
+
 function messages({ kind, event, item, actor, supplierTo, adminTo }) {
   const isBooking = kind === 'booking'
   const noun = isBooking ? 'booking' : 'order'
   const title = item.listingTitle || (isBooking ? 'Your booking' : 'Your order')
-  const total = isBooking
-    ? item.priceCents
-    : item.totalCents ?? (item.priceCents || 0) * (item.quantity || 1)
+  const hasDelivery = !isBooking && Number.isInteger(item.deliveryCents)
+  let total
+  if (isBooking) total = item.priceCents
+  else if (Number.isInteger(item.grandTotalCents)) total = item.grandTotalCents
+  else total = item.totalCents ?? (item.priceCents || 0) * (item.quantity || 1)
   const buyerLink = `${siteUrl()}${isBooking ? '/my-bookings' : '/my-orders'}`
   const sellerLink = `${siteUrl()}${isBooking ? '/seller/bookings' : '/seller/orders'}`
 
   const details = [
     ['Item', title],
     isBooking ? ['When', formatWhen(item.date, item.time)] : ['Quantity', item.quantity],
+    ...(hasDelivery ? [['Delivery', deliveryText(item)]] : []),
     ['Total', zar(total)],
   ]
   const buyerTo = item.buyerEmail
@@ -43,7 +52,9 @@ function messages({ kind, event, item, actor, supplierTo, adminTo }) {
           heading: `You have a new ${noun} request`,
           lines: [
             `${buyerName} has sent you a ${noun} request on Zolara.`,
-            'Please accept or decline it as soon as you can. The customer cannot pay until you accept.',
+            isBooking
+              ? 'Please accept or decline it as soon as you can. The customer cannot pay until you accept.'
+              : 'Please accept or decline it as soon as you can. When you accept, you confirm the delivery cost. The customer cannot pay until you accept.',
           ],
           details,
           button: { label: `View ${noun} requests`, url: sellerLink },
@@ -53,7 +64,9 @@ function messages({ kind, event, item, actor, supplierTo, adminTo }) {
           subject: `We have sent your ${noun} request to ${sellerName}`,
           heading: `Your ${noun} request is with ${sellerName}`,
           lines: [
-            'No payment is taken now. When the supplier accepts, we will email you and you can pay securely through PayFast.',
+            isBooking
+              ? 'No payment is taken now. When the supplier accepts, we will email you and you can pay securely through PayFast.'
+              : 'No payment is taken now. When the supplier accepts, we will email you the final total including delivery, and you can pay securely through PayFast.',
           ],
           details,
           button: { label: isBooking ? 'View my bookings' : 'View my orders', url: buyerLink },
@@ -67,7 +80,9 @@ function messages({ kind, event, item, actor, supplierTo, adminTo }) {
           subject: `${sellerName} accepted your ${noun}`,
           heading: `Your ${noun} was accepted`,
           lines: [
-            `${sellerName} has accepted your ${noun}. To go ahead, please pay securely through PayFast.`,
+            hasDelivery
+              ? `${sellerName} has accepted your order. The total below includes delivery. To go ahead, please pay securely through PayFast.`
+              : `${sellerName} has accepted your ${noun}. To go ahead, please pay securely through PayFast.`,
           ],
           details,
           button: { label: 'Pay now', url: buyerLink },

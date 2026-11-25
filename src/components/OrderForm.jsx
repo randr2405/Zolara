@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_NOTICE, ORDER_NOTICE_VERSION } from '../lib/orders.js'
+import { deliverySummary } from '../lib/delivery.js'
 import { notify } from '../lib/notify.js'
 
 const input = 'rounded-lg border border-gold/50 bg-white p-3'
@@ -44,6 +45,8 @@ export default function OrderForm() {
         quantity,
         priceCents: listing.priceCents,
         totalCents: listing.priceCents * quantity,
+        deliveryType: listing.deliveryType || null,
+        deliveryQuoteCents: listing.deliveryType === 'flat' ? listing.deliveryFeeCents || 0 : 0,
         sellerId: listing.sellerId,
         sellerName: listing.sellerName,
         buyerId: user.uid,
@@ -72,13 +75,23 @@ export default function OrderForm() {
   if (!listing.stock || listing.stock < 1) return <p className="p-6 text-center">This product is out of stock.</p>
 
   const quantity = parseInt(form.quantity, 10) || 0
+  const itemsCents = listing.priceCents * quantity
+  const type = listing.deliveryType
+  const collection_ = type === 'collection'
+  const flatCents = type === 'flat' ? listing.deliveryFeeCents || 0 : 0
+
+  let deliveryLine = 'Confirmed by the supplier when they accept your order'
+  if (collection_) deliveryLine = 'None. You collect from the supplier'
+  else if (type === 'free') deliveryLine = 'Free'
+  else if (type === 'flat') deliveryLine = formatZAR(flatCents)
 
   return (
     <main className="mx-auto max-w-xl p-6">
       <h1 className="mb-1 text-2xl font-semibold text-emerald-brand">Order this product</h1>
-      <p className="mb-6 text-sm">
+      <p className="mb-2 text-sm">
         {listing.title} · {formatZAR(listing.priceCents)} each · {listing.stock} in stock · {listing.sellerName}
       </p>
+      <p className="mb-6 text-sm text-gold-deep">{deliverySummary(listing)}</p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="text-sm">
@@ -88,14 +101,29 @@ export default function OrderForm() {
         </label>
         <input required type="tel" placeholder="Your phone number" value={form.phone}
           onChange={set('phone')} className={input} />
-        <textarea required rows={3} placeholder="Delivery address" value={form.address}
-          onChange={set('address')} className={input} />
+        <textarea required={!collection_} rows={3}
+          placeholder={collection_ ? 'Your address (optional, you will collect)' : 'Delivery address'}
+          value={form.address} onChange={set('address')} className={input} />
         <textarea rows={3} placeholder="Anything the supplier should know? (optional)" value={form.notes}
           onChange={set('notes')} className={input} />
 
-        <p className="text-sm font-medium text-emerald-brand">
-          Total: {formatZAR(listing.priceCents * quantity)}
-        </p>
+        <div className="rounded-xl border border-gold/50 bg-white p-4 text-sm">
+          <div className="flex justify-between">
+            <span>Items</span>
+            <span>{formatZAR(itemsCents)}</span>
+          </div>
+          <div className="mt-1 flex justify-between gap-4">
+            <span>Delivery</span>
+            <span className="text-right">{deliveryLine}</span>
+          </div>
+          <div className="mt-2 flex justify-between border-t border-gold/30 pt-2 font-medium text-emerald-brand">
+            <span>{type === 'flat' || type === 'free' || collection_ ? 'Total to pay' : 'Items total'}</span>
+            <span>{formatZAR(itemsCents + flatCents)}</span>
+          </div>
+          <p className="mt-2 text-xs text-charcoal/70">
+            You pay only after the supplier accepts. If the delivery cost changes, you will see the final total before you pay.
+          </p>
+        </div>
 
         <div className="rounded-xl border border-gold-deep bg-white p-4 text-xs leading-relaxed">
           <p className="mb-2 text-sm font-semibold text-emerald-brand">Please read before you order</p>

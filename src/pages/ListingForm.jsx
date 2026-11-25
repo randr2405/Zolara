@@ -7,6 +7,7 @@ import {
 import { db } from '../lib/firebase'
 import { resizeImage } from '../lib/images'
 import { mainCategories, subCategories, categoryNote } from '../lib/constants.js'
+import { DELIVERY_OPTIONS } from '../lib/delivery.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const MAX_IMAGES = 4
@@ -92,6 +93,7 @@ export default function ListingForm() {
   const [form, setForm] = useState({
     type: 'product', title: '', description: '', category: '', subcategory: '',
     price: '', stock: '1', duration: '60',
+    deliveryType: 'collection', deliveryFee: '', deliveryNote: '', travelNote: '',
   })
   const [existing, setExisting] = useState([])
   const [removed, setRemoved] = useState([])
@@ -116,6 +118,10 @@ export default function ListingForm() {
             category: d.category || '', subcategory: d.subcategory || '',
             price: (d.priceCents / 100).toString(),
             stock: String(d.stock ?? 1), duration: String(d.durationMinutes ?? 60),
+            deliveryType: d.deliveryType || 'collection',
+            deliveryFee: d.deliveryFeeCents ? (d.deliveryFeeCents / 100).toString() : '',
+            deliveryNote: d.deliveryNote || '',
+            travelNote: d.travelNote || '',
           })
           const ph = await getDocs(query(collection(db, 'listings', id, 'photos'), orderBy('order')))
           setExisting(ph.docs.map((p) => ({ id: p.id, data: p.data().data })))
@@ -153,14 +159,25 @@ export default function ListingForm() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setBusy(true)
     setError('')
+
+    const isProduct = form.type === 'product'
+    let deliveryFeeCents = 0
+    if (isProduct && form.deliveryType === 'flat') {
+      const fee = parseFloat(form.deliveryFee)
+      if (!Number.isFinite(fee) || fee <= 0) {
+        setError('Enter the flat delivery fee, for example 60.')
+        return
+      }
+      deliveryFeeCents = Math.round(fee * 100)
+    }
+
+    setBusy(true)
     try {
       const newPhotos = await Promise.all(files.map((f) => resizeImage(f, 800, 0.75)))
       const allPhotos = [...existing.map((p) => p.data), ...newPhotos]
       const thumb = allPhotos[0] ? await resizeImage(allPhotos[0], 360, 0.7) : null
 
-      const isProduct = form.type === 'product'
       const data = {
         type: form.type,
         title: form.title,
@@ -170,6 +187,10 @@ export default function ListingForm() {
         priceCents: Math.round(parseFloat(form.price) * 100),
         stock: isProduct ? parseInt(form.stock, 10) : null,
         durationMinutes: isProduct ? null : parseInt(form.duration, 10),
+        deliveryType: isProduct ? form.deliveryType : null,
+        deliveryFeeCents: isProduct ? deliveryFeeCents : null,
+        deliveryNote: isProduct ? form.deliveryNote.trim() : '',
+        travelNote: isProduct ? '' : form.travelNote.trim(),
         thumb,
         sellerId: user.uid,
         sellerName: seller.businessName,
@@ -392,6 +413,85 @@ export default function ListingForm() {
               </Field>
             )}
           </Section>
+
+          {isProduct ? (
+            <Section
+              title="Delivery"
+              hint="You arrange and manage delivery yourself. The customer pays the delivery cost together with the item, and it is paid to you as part of the sale."
+            >
+              <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Delivery option">
+                {DELIVERY_OPTIONS.map(([value, label, hint]) => (
+                  <label
+                    key={value}
+                    className={`flex min-h-[96px] cursor-pointer flex-col gap-1 rounded-2xl border p-4 transition focus-within:ring-2 focus-within:ring-gold ${
+                      form.deliveryType === value ? 'border-emerald-brand bg-cream' : 'border-gold/50 bg-white hover:bg-cream'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="deliveryType"
+                      value={value}
+                      checked={form.deliveryType === value}
+                      onChange={set('deliveryType')}
+                      className="sr-only"
+                    />
+                    <span className="text-sm font-semibold text-emerald-brand">{label}</span>
+                    <span className="text-xs text-charcoal/70">{hint}</span>
+                  </label>
+                ))}
+              </div>
+              {form.deliveryType === 'flat' && (
+                <Field label="Delivery fee" htmlFor="lf-delivery-fee" hint="You can change this for a large or heavy order when you accept it.">
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-base font-medium text-gold-deep">
+                      R
+                    </span>
+                    <input
+                      id="lf-delivery-fee"
+                      required
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.01"
+                      placeholder="60"
+                      value={form.deliveryFee}
+                      onChange={set('deliveryFee')}
+                      className={`${inputClass} pl-9`}
+                    />
+                  </div>
+                </Field>
+              )}
+              <Field
+                label="Delivery note (optional)"
+                htmlFor="lf-delivery-note"
+                hint="For example the areas you deliver to, how long it takes, or the order value for free delivery."
+              >
+                <textarea
+                  id="lf-delivery-note"
+                  rows={2}
+                  maxLength={300}
+                  value={form.deliveryNote}
+                  onChange={set('deliveryNote')}
+                  className={inputClass}
+                />
+              </Field>
+            </Section>
+          ) : (
+            <Section
+              title="Travel or call-out"
+              hint="Services do not have shipping. If you charge a travel or call-out fee, say so clearly here."
+            >
+              <Field label="Travel or call-out note (optional)" htmlFor="lf-travel-note" hint="For example: Call-out fee R150 within 20 km of Verulam.">
+                <textarea
+                  id="lf-travel-note"
+                  rows={2}
+                  maxLength={300}
+                  value={form.travelNote}
+                  onChange={set('travelNote')}
+                  className={inputClass}
+                />
+              </Field>
+            </Section>
+          )}
 
           <Section
             title={`Photos (${photoCount} of ${MAX_IMAGES})`}

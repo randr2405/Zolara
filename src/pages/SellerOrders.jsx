@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import SellerFeedback from '../components/SellerFeedback.jsx'
 import { formatZAR } from '../lib/constants.js'
 import { ORDER_STATUS } from '../lib/orders.js'
+import { deliveryIsEditable, deliveryOf, hasDeliveryCost, orderTotal } from '../lib/delivery.js'
 import { notify } from '../lib/notify.js'
 import {
   STATUS_SUMMARY_COLUMNS, downloadWorkbook, stampDate, summaryByStatus,
@@ -59,7 +60,7 @@ function Icon({ name, size = 18 }) {
 const setStatus = (id, status) =>
   updateDoc(doc(db, 'orders', id), { status, updatedAt: serverTimestamp() })
 
-async function acceptOrder(order) {
+async function acceptOrder(order, deliveryCents) {
   await runTransaction(db, async (tx) => {
     const listingRef = doc(db, 'listings', order.listingId)
     const orderRef = doc(db, 'orders', order.id)
@@ -70,7 +71,12 @@ async function acceptOrder(order) {
     const stock = listing.data().stock ?? 0
     if (stock < order.quantity) throw new Error('stock')
     tx.update(listingRef, { stock: stock - order.quantity })
-    tx.update(orderRef, { status: 'confirmed', updatedAt: serverTimestamp() })
+    tx.update(orderRef, {
+      status: 'confirmed',
+      deliveryCents,
+      grandTotalCents: current.data().totalCents + deliveryCents,
+      updatedAt: serverTimestamp(),
+    })
   })
 }
 
@@ -97,7 +103,7 @@ const readyToDeliver = (o) =>
 function nextStep(o) {
   const paid = o.paymentStatus === 'paid'
   const refundAsked = o.refundStatus === 'requested'
-  if (o.status === 'requested') return 'New order. Accepting it reserves the stock.'
+  if (o.status === 'requested') return 'New order. Accepting it reserves the stock and confirms the delivery cost.'
   if (o.status === 'confirmed' && !paid) return 'Waiting for the customer to pay.'
   if (o.status === 'confirmed' && paid && refundAsked) return 'Paid, but the customer has requested a refund. Do not ship yet.'
   if (o.status === 'confirmed' && paid) return 'Paid. Ship the order, then mark it as shipped.'
@@ -107,6 +113,13 @@ function nextStep(o) {
   if (o.status === 'declined') return 'You declined this order.'
   if (o.status === 'cancelled') return 'This order was cancelled.'
   return ORDER_STATUS[o.status] || ''
+}
+
+function deliveryTypeLabel(o) {
+  if (o.deliveryType === 'collection') return 'Collection only'
+  if (o.deliveryType === 'free') return 'Free delivery'
+  if (o.deliveryType === 'flat') return 'Flat delivery fee'
+  return 'To be confirmed'
 }
 
 function DetailRow({ label, value }) {
@@ -125,6 +138,9 @@ function OrderCard({ order: o, feedback }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [flash, setFlash] = useState(false)
+  const [deliveryText, setDeliveryText] = useState(
+    o.deliveryQuoteCents ? (o.deliveryQuoteCents / 100).toFixed(2) : ''
+  )
   const lastStatus = useRef(o.status)
 
   useEffect(() => {
@@ -142,6 +158,7 @@ function OrderCard({ order: o, feedback }) {
   const ordered = o.createdAt?.toDate?.().toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
   const reference = o.id.slice(0, 8).toUpperCase()
   const phoneLink = o.buyerPhone ? `tel:${String(o.buyerPhone).replace(/\s+/g, '')}` : ''
+  const editableDelivery = deliveryIsEditable(o)
 
   async function run(fn, event) {
     setBusy(true)
@@ -161,7 +178,26 @@ function OrderCard({ order: o, feedback }) {
     }
   }
 
+  function accept() {
+    let cents = 0
+    if (editableDelivery) {
+      const value = deliveryText.trim() === '' ? 0 : parseFloat(deliveryText)
+      if (!Number.isFinite(value) || value < 0 || value > 100000) {
+        setError('Enter a valid delivery cost, or 0 if there is none.')
+        return
+      }
+      cents = Math.round(value * 100)
+    }
+    run(() => acceptOrder(o, cents), 'confirmed')
+  }
+
   const confirmCopy = {
+    accept: {
+      text: 'Accept this order? The stock is reserved and the customer can then pay.',
+      yes: 'Yes, accept',
+      danger: false,
+      go: accept,
+    },
     decline: {
       text: `Decline this order from ${o.buyerName || 'the customer'}? They will be told.`,
       yes: 'Yes, decline',
@@ -229,7 +265,10 @@ function OrderCard({ order: o, feedback }) {
 
         <div className="flex-none text-right">
           <p className="text-xs text-charcoal/60">Total</p>
-          <p className="text-sm font-semibold text-emerald-brand">{formatZAR(o.totalCents)}</p>
+          <p className="text-sm font-semibold text-emerald-brand">{formatZAR(orderTotal(o))}</p>
+          {hasDeliveryCost(o) && (
+            <p className="text-xs text-charcoal/60">incl. {formatZAR(deliveryOf(o))} delivery</p>
+          )}
         </div>
       </div>
 
@@ -237,9 +276,17 @@ function OrderCard({ order: o, feedback }) {
 
       {o.address && (
         <div className="mt-3 rounded-xl border-l-4 border-emerald-brand bg-cream px-4 py-3">
-          <p className="text-xs font-medium text-gold-deep">Deliver to</p>
+          <p className="text-xs font-medium text-gold-deep">
+            {o.deliveryType === 'collection' ? 'Customer address' : 'Deliver to'}
+          </p>
           <p className="mt-1 whitespace-pre-line break-words text-sm">{o.address}</p>
         </div>
+      )}
+      {o.status === 'requested' && (
+        <p className="mt-3 rounded-xl bg-cream px-4 py-3 text-sm text-gold-deep">
+          Delivery on this listing: {deliveryTypeLabel(o)}
+          {o.deliveryType === 'flat' ? ` (${formatZAR(o.deliveryQuoteCents || 0)})` : ''}.
+        </p>
       )}
       {o.notes && (
         <div className="mt-3 rounded-xl border-l-4 border-gold bg-cream px-4 py-3">
@@ -268,6 +315,39 @@ function OrderCard({ order: o, feedback }) {
           <p className={`text-sm font-medium ${confirmCopy.danger ? 'text-red-800' : 'text-emerald-brand'}`}>
             {confirmCopy.text}
           </p>
+          {confirming === 'accept' && editableDelivery && (
+            <div className="mt-3">
+              <label htmlFor={`delivery-${o.id}`} className="mb-1.5 block text-sm font-medium text-emerald-brand">
+                Delivery cost for this order
+              </label>
+              <div className="relative max-w-xs">
+                <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-base font-medium text-gold-deep">
+                  R
+                </span>
+                <input
+                  id={`delivery-${o.id}`}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={deliveryText}
+                  onChange={(e) => setDeliveryText(e.target.value)}
+                  className="min-h-[48px] w-full rounded-xl border border-gold/50 bg-white py-3 pl-9 pr-4 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-charcoal/70">
+                The customer pays this together with the items. Leave it at 0 if there is no delivery cost.
+              </p>
+            </div>
+          )}
+          {confirming === 'accept' && !editableDelivery && (
+            <p className="mt-2 text-sm text-charcoal/80">
+              {o.deliveryType === 'collection'
+                ? 'This is a collection only order, so there is no delivery cost.'
+                : 'This listing has free delivery, so the customer pays no delivery cost.'}
+            </p>
+          )}
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
             <button
               disabled={busy}
@@ -287,10 +367,10 @@ function OrderCard({ order: o, feedback }) {
             <>
               <button
                 disabled={busy}
-                onClick={() => run(() => acceptOrder(o), 'confirmed')}
+                onClick={() => { setError(''); setConfirming('accept') }}
                 className={`${btnPrimary} w-full sm:w-auto`}
               >
-                {busy ? 'Saving…' : 'Accept'}
+                Accept
               </button>
               <button onClick={() => setConfirming('decline')} className={`${btnDanger} w-full sm:w-auto`}>
                 Decline
@@ -345,7 +425,10 @@ function OrderCard({ order: o, feedback }) {
             <DetailRow label="Ordered" value={ordered} />
             <DetailRow label="Quantity" value={o.quantity ? String(o.quantity) : ''} />
             <DetailRow label="Unit price" value={formatZAR(o.priceCents)} />
-            <DetailRow label="Total" value={formatZAR(o.totalCents)} />
+            <DetailRow label="Items total" value={formatZAR(o.totalCents)} />
+            <DetailRow label="Delivery option" value={deliveryTypeLabel(o)} />
+            <DetailRow label="Delivery cost" value={hasDeliveryCost(o) ? formatZAR(deliveryOf(o)) : ''} />
+            <DetailRow label="Total to pay" value={formatZAR(orderTotal(o))} />
             <DetailRow label="Customer" value={o.buyerName} />
             <DetailRow label="Phone" value={o.buyerPhone} />
             <DetailRow label="Email" value={o.buyerEmail} />
@@ -437,6 +520,8 @@ export default function SellerOrders() {
             { header: 'Item', key: 'item', width: 30 },
             { header: 'Quantity', key: 'quantity', type: 'number', width: 10 },
             { header: 'Unit price', key: 'price', type: 'cents', width: 16 },
+            { header: 'Items total', key: 'items', type: 'cents', width: 16 },
+            { header: 'Delivery', key: 'delivery', type: 'cents', width: 16 },
             { header: 'Total', key: 'total', type: 'cents', width: 16 },
             { header: 'Status', key: 'status', width: 20 },
             { header: 'Payment', key: 'payment', width: 14 },
@@ -451,7 +536,9 @@ export default function SellerOrders() {
             item: o.listingTitle,
             quantity: o.quantity,
             price: o.priceCents,
-            total: o.totalCents,
+            items: o.totalCents,
+            delivery: deliveryOf(o),
+            total: orderTotal(o),
             status: ORDER_STATUS[o.status] || o.status,
             payment: o.paymentStatus === 'paid' ? 'Paid' : o.paymentStatus === 'refunded' ? 'Refunded' : 'Not paid',
             customer: o.buyerName,
@@ -464,9 +551,9 @@ export default function SellerOrders() {
         {
           name: 'Summary',
           title: 'Zolara · Orders by status',
-          subtitle: 'Value is the total order amount for each status.',
+          subtitle: 'Value is the total order amount for each status, including delivery.',
           columns: STATUS_SUMMARY_COLUMNS,
-          rows: summaryByStatus(orders, ORDER_STATUS, (o) => o.totalCents || 0),
+          rows: summaryByStatus(orders, ORDER_STATUS, (o) => orderTotal(o)),
         },
       ])
     } catch (err) {

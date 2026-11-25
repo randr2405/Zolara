@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import FavouriteButton from '../components/FavouriteButton.jsx'
 import { formatZAR, PREFERRED_LABEL } from '../lib/constants.js'
+import { deliverySummary } from '../lib/delivery.js'
 import { summarize } from '../lib/ratings.js'
 import RatingBadge from '../components/RatingBadge.jsx'
 
@@ -18,6 +19,7 @@ const ICONS = {
   clock: 'M12 7v5l3 2 M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
   box: 'M4 8l8-4 8 4v8l-8 4-8-4z M4 8l8 4 8-4 M12 12v8',
   pin: 'M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z M12 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  truck: 'M3 6h11v10H3z M14 10h4l3 3v3h-7 M7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z M17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
 }
 
 function Icon({ name, size = 18 }) {
@@ -127,6 +129,7 @@ export default function ListingDetail() {
   const lowStock = !isService && !outOfStock && listing.stock <= 5
   const initial = (listing.sellerName || '?').trim().charAt(0).toUpperCase()
   const place = `${listing.city || ''}${listing.province ? `, ${listing.province}` : ''}`.replace(/^, /, '')
+  const extraNote = isService ? listing.travelNote : listing.deliveryNote
 
   let action = null
   let note = null
@@ -216,9 +219,17 @@ export default function ListingDetail() {
               ) : (
                 <Fact icon="box">{outOfStock ? 'None in stock' : `${listing.stock} in stock`}</Fact>
               )}
+              {!isService && <Fact icon="truck">{deliverySummary(listing)}</Fact>}
               {place && <Fact icon="pin">{place}</Fact>}
             </div>
             {lowStock && <p className="mt-2 text-sm font-medium text-gold-deep">Only {listing.stock} left.</p>}
+
+            {extraNote && (
+              <p className="mt-3 rounded-xl border-l-4 border-gold bg-white px-4 py-3 text-sm">
+                <span className="font-medium text-gold-deep">{isService ? 'Travel or call-out: ' : 'Delivery: '}</span>
+                {extraNote}
+              </p>
+            )}
 
             {listing.description && (
               <p className="mt-5 whitespace-pre-line break-words text-sm leading-relaxed text-charcoal/90 sm:text-base">

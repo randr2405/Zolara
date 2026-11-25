@@ -31,10 +31,15 @@ export default async function handler(req, res) {
     if (!listing.exists) return fail(res, 409, 'listing')
     const unit = listing.data().priceCents
     const quantity = kind === 'order' ? item.quantity : 1
-    const amountCents = unit * quantity
-    if (!Number.isInteger(unit) || !Number.isInteger(quantity) || unit < 1 || quantity < 1) {
+    const deliveryCents = kind === 'order' && item.deliveryCents !== undefined ? item.deliveryCents : 0
+    if (
+      !Number.isInteger(unit) || !Number.isInteger(quantity) || unit < 1 || quantity < 1 ||
+      !Number.isInteger(deliveryCents) || deliveryCents < 0
+    ) {
       return fail(res, 409, 'amount')
     }
+    const itemsCents = unit * quantity
+    const amountCents = itemsCents + deliveryCents
 
     const payRef = adminDb.collection('payments').doc()
     await payRef.set({
@@ -44,6 +49,8 @@ export default async function handler(req, res) {
       sellerId: item.sellerId,
       sellerName: item.sellerName || '',
       title: item.listingTitle || '',
+      itemsCents,
+      deliveryCents,
       amountCents,
       status: 'pending',
       createdAt: FieldValue.serverTimestamp(),
