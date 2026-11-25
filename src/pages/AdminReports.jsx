@@ -4,6 +4,7 @@ import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from 'f
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext.jsx'
 import { formatZAR } from '../lib/constants.js'
+import { orderTotal } from '../lib/delivery.js'
 import {
   SUBSCRIPTION_CENTS, endOfDay, fortnightFor, formatDate, millis, startOfDay, sum, toInputDate,
 } from '../lib/finance.js'
@@ -94,10 +95,16 @@ export default function AdminReports() {
     if (!sellers) return []
     const sales = [
       ...orders.map((o) => ({
-        sellerId: o.sellerId, cents: o.totalCents || 0, fee: o.feeCents || 0, at: millis(o.updatedAt || o.createdAt),
+        sellerId: o.sellerId,
+        cents: o.paidCents ?? orderTotal(o),
+        fee: o.feeCents || 0,
+        at: millis(o.updatedAt || o.createdAt),
       })),
       ...bookings.map((b) => ({
-        sellerId: b.sellerId, cents: b.priceCents || 0, fee: b.feeCents || 0, at: millis(b.updatedAt || b.createdAt),
+        sellerId: b.sellerId,
+        cents: b.paidCents ?? b.priceCents ?? 0,
+        fee: b.feeCents || 0,
+        at: millis(b.updatedAt || b.createdAt),
       })),
     ]
     const lo = startOfDay(from)
@@ -188,7 +195,7 @@ export default function AdminReports() {
 
   async function exportExcel() {
     setError('')
-    const period = `Period ${from} to ${to}. Sales count when a booking is completed or an order is delivered, and the customer has paid.`
+    const period = `Period ${from} to ${to}. Sales count when a booking is completed or an order is delivered, and the customer has paid. Order sales include delivery.`
     const entries = rows
       .flatMap((r) => r.entries)
       .sort((a, b) => millis(b.createdAt) - millis(a.createdAt))
@@ -488,6 +495,9 @@ export default function AdminReports() {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold">{formatZAR(p.amountCents)}</p>
+                  {p.deliveryCents > 0 && (
+                    <p className="text-xs text-charcoal/70">incl. {formatZAR(p.deliveryCents)} delivery</p>
+                  )}
                   {p.feeCents > 0 && <p className="text-xs text-gold-deep">Fee {formatZAR(p.feeCents)}</p>}
                 </div>
               </li>
@@ -497,7 +507,8 @@ export default function AdminReports() {
 
         <p className="mt-8 rounded-xl border-l-4 border-gold bg-white px-4 py-3 text-xs leading-relaxed sm:text-sm">
           Sales count when the customer has paid through PayFast and the booking is completed or the
-          order is delivered. PayFast fees are deducted from each supplier’s balance.
+          order is delivered. For orders, the delivery cost the customer paid is part of the sale. PayFast
+          fees are deducted from each supplier’s balance.
         </p>
       </main>
     </div>
