@@ -188,7 +188,7 @@ export default function ListingForm() {
         stock: isProduct ? parseInt(form.stock, 10) : null,
         durationMinutes: isProduct ? null : parseInt(form.duration, 10),
         deliveryType: isProduct ? form.deliveryType : null,
-        deliveryFeeCents: isProduct ? deliveryFeeCents : null,
+        deliveryFeeCents: isProduct ? deliveryFeeCents : 0,
         deliveryNote: isProduct ? form.deliveryNote.trim() : '',
         travelNote: isProduct ? '' : form.travelNote.trim(),
         thumb,
