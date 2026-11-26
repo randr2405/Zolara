@@ -12,10 +12,15 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 const MAX_IMAGES = 4
 
+const ADULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+const KIDS_SIZES = ['0-3m', '3-6m', '6-12m', '1-2y', '2-3y', '3-4y', '5-6y', '7-8y', '9-10y', '11-12y']
+
 const btn =
   'inline-flex min-h-[48px] items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 disabled:opacity-60'
 const btnPrimary = `${btn} bg-emerald-brand text-cream hover:bg-emerald-brand/90`
 const btnQuiet = `${btn} border border-gold-deep text-gold-deep hover:bg-cream`
+const chip =
+  'inline-flex min-h-[40px] items-center justify-center rounded-full border border-gold-deep px-4 text-sm font-medium text-gold-deep transition hover:bg-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-gold disabled:opacity-40'
 
 const inputClass =
   'min-h-[48px] w-full rounded-xl border border-gold/50 bg-white px-4 py-3 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-gold'
@@ -95,6 +100,8 @@ export default function ListingForm() {
     price: '', stock: '1', duration: '60',
     deliveryType: 'collection', deliveryFee: '', deliveryNote: '', travelNote: '',
   })
+  const [sizes, setSizes] = useState([])
+  const [customSize, setCustomSize] = useState('')
   const [existing, setExisting] = useState([])
   const [removed, setRemoved] = useState([])
   const [files, setFiles] = useState([])
@@ -123,6 +130,11 @@ export default function ListingForm() {
             deliveryNote: d.deliveryNote || '',
             travelNote: d.travelNote || '',
           })
+          setSizes(
+            Array.isArray(d.sizes)
+              ? d.sizes.map((x) => ({ label: x.label, stock: String(x.stock ?? 0) }))
+              : []
+          )
           const ph = await getDocs(query(collection(db, 'listings', id, 'photos'), orderBy('order')))
           setExisting(ph.docs.map((p) => ({ id: p.id, data: p.data().data })))
         }
@@ -157,11 +169,32 @@ export default function ListingForm() {
     setRemoved([...removed, photo.id])
   }
 
+  function addSize(label) {
+    const clean = label.trim()
+    if (!clean) return
+    if (sizes.some((s) => s.label.toLowerCase() === clean.toLowerCase())) return
+    setSizes([...sizes, { label: clean, stock: '1' }])
+  }
+
+  function addCustomSize() {
+    addSize(customSize)
+    setCustomSize('')
+  }
+
+  function setSizeStock(index, value) {
+    setSizes(sizes.map((s, i) => (i === index ? { ...s, stock: value } : s)))
+  }
+
+  function removeSize(index) {
+    setSizes(sizes.filter((_, i) => i !== index))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
 
     const isProduct = form.type === 'product'
+    const isClothing = isProduct && form.category === 'Clothing'
     let deliveryFeeCents = 0
     if (isProduct && form.deliveryType === 'flat') {
       const fee = parseFloat(form.deliveryFee)
@@ -171,6 +204,20 @@ export default function ListingForm() {
       }
       deliveryFeeCents = Math.round(fee * 100)
     }
+
+    let cleanSizes = []
+    if (isClothing) {
+      cleanSizes = sizes.map((s) => ({ label: s.label.trim(), stock: parseInt(s.stock, 10) }))
+      if (cleanSizes.length === 0) {
+        setError('Add at least one size.')
+        return
+      }
+      if (cleanSizes.some((s) => !s.label || !Number.isInteger(s.stock) || s.stock < 0)) {
+        setError('Each size needs a name and a stock number of 0 or more.')
+        return
+      }
+    }
+    const totalStock = cleanSizes.reduce((n, s) => n + s.stock, 0)
 
     setBusy(true)
     try {
@@ -185,7 +232,8 @@ export default function ListingForm() {
         category: form.category,
         subcategory: form.subcategory,
         priceCents: Math.round(parseFloat(form.price) * 100),
-        stock: isProduct ? parseInt(form.stock, 10) : null,
+        stock: isProduct ? (isClothing ? totalStock : parseInt(form.stock, 10)) : null,
+        sizes: cleanSizes,
         durationMinutes: isProduct ? null : parseInt(form.duration, 10),
         deliveryType: isProduct ? form.deliveryType : null,
         deliveryFeeCents: isProduct ? deliveryFeeCents : 0,
@@ -244,8 +292,10 @@ export default function ListingForm() {
   const subs = form.category ? subCategories(form.category, form.type) : []
   const note = categoryNote(form.category)
   const isProduct = form.type === 'product'
+  const isClothing = isProduct && form.category === 'Clothing'
   const photoCount = existing.length + files.length
   const canAddPhotos = existing.length < MAX_IMAGES
+  const sizeTotal = sizes.reduce((n, s) => n + (parseInt(s.stock, 10) || 0), 0)
 
   const typeOptions = [
     ['product', 'Product', 'Something you sell and ship or hand over', 'box'],
@@ -381,7 +431,7 @@ export default function ListingForm() {
                 />
               </div>
             </Field>
-            {isProduct ? (
+            {isProduct && !isClothing && (
               <Field label="Stock available" htmlFor="lf-stock" hint="Customers cannot buy once this reaches 0.">
                 <input
                   id="lf-stock"
@@ -396,7 +446,8 @@ export default function ListingForm() {
                   className={inputClass}
                 />
               </Field>
-            ) : (
+            )}
+            {!isProduct && (
               <Field label="Duration (minutes)" htmlFor="lf-duration" hint="In steps of 15 minutes, e.g. 60 for one hour.">
                 <input
                   id="lf-duration"
@@ -413,6 +464,94 @@ export default function ListingForm() {
               </Field>
             )}
           </Section>
+
+          {isClothing && (
+            <Section
+              title="Sizes and stock"
+              hint="Tap the sizes you sell, then enter how many you have of each. A size sells out on its own."
+            >
+              <div>
+                <p className="mb-2 text-xs font-medium text-gold-deep">Adult sizes</p>
+                <div className="flex flex-wrap gap-2">
+                  {ADULT_SIZES.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => addSize(s)}
+                      disabled={sizes.some((x) => x.label === s)}
+                      className={chip}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-gold-deep">Baby and kids sizes</p>
+                <div className="flex flex-wrap gap-2">
+                  {KIDS_SIZES.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => addSize(s)}
+                      disabled={sizes.some((x) => x.label === s)}
+                      className={chip}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  aria-label="Custom size"
+                  placeholder="Other size, e.g. 32"
+                  value={customSize}
+                  maxLength={12}
+                  onChange={(e) => setCustomSize(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addCustomSize()
+                    }
+                  }}
+                  className={inputClass}
+                />
+                <button type="button" onClick={addCustomSize} className={`${btnQuiet} flex-none`}>
+                  Add
+                </button>
+              </div>
+
+              {sizes.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {sizes.map((s, i) => (
+                    <li key={s.label} className="flex items-center gap-3 rounded-xl border border-gold/40 bg-cream px-4 py-2">
+                      <span className="w-20 flex-none text-sm font-semibold text-emerald-brand">{s.label}</span>
+                      <input
+                        aria-label={`Stock for size ${s.label}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        step="1"
+                        value={s.stock}
+                        onChange={(e) => setSizeStock(i, e.target.value)}
+                        className="min-h-[44px] w-full rounded-xl border border-gold/50 bg-white px-3 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSize(i)}
+                        aria-label={`Remove size ${s.label}`}
+                        className="grid h-10 w-10 flex-none place-items-center rounded-full text-red-700 transition hover:bg-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                      >
+                        <Icon name="close" size={16} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-charcoal/70">Total in stock: {sizeTotal}</p>
+            </Section>
+          )}
 
           {isProduct ? (
             <Section

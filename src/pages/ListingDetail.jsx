@@ -127,6 +127,7 @@ export default function ListingDetail() {
   const isOwner = user?.uid === listing.sellerId
   const outOfStock = !isService && (!listing.stock || listing.stock < 1)
   const lowStock = !isService && !outOfStock && listing.stock <= 5
+  const sizes = !isService && Array.isArray(listing.sizes) ? listing.sizes : []
   const initial = (listing.sellerName || '?').trim().charAt(0).toUpperCase()
   const place = `${listing.city || ''}${listing.province ? `, ${listing.province}` : ''}`.replace(/^, /, '')
   const extraNote = isService ? listing.travelNote : listing.deliveryNote
@@ -223,6 +224,30 @@ export default function ListingDetail() {
               {place && <Fact icon="pin">{place}</Fact>}
             </div>
             {lowStock && <p className="mt-2 text-sm font-medium text-gold-deep">Only {listing.stock} left.</p>}
+
+            {sizes.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-sm font-medium text-emerald-brand">Sizes</p>
+                <ul className="flex flex-wrap gap-2">
+                  {sizes.map((s) => {
+                    const gone = (s.stock ?? 0) < 1
+                    return (
+                      <li
+                        key={s.label}
+                        className={`rounded-full px-3 py-1.5 text-sm ring-1 ${
+                          gone
+                            ? 'bg-cream text-charcoal/40 line-through ring-charcoal/10'
+                            : 'bg-white text-emerald-brand ring-gold/60'}`}
+                      >
+                        {s.label}
+                        {gone ? <span className="sr-only"> (sold out)</span> : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+                <p className="mt-2 text-xs text-charcoal/70">You choose your size when you order.</p>
+              </div>
+            )}
 
             {extraNote && (
               <p className="mt-3 rounded-xl border-l-4 border-gold bg-white px-4 py-3 text-sm">

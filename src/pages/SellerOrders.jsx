@@ -68,9 +68,21 @@ async function acceptOrder(order, deliveryCents) {
     const current = await tx.get(orderRef)
     if (!current.exists() || current.data().status !== 'requested') throw new Error('status')
     if (!listing.exists()) throw new Error('listing')
-    const stock = listing.data().stock ?? 0
-    if (stock < order.quantity) throw new Error('stock')
-    tx.update(listingRef, { stock: stock - order.quantity })
+    const data = listing.data()
+    const sizes = Array.isArray(data.sizes) ? data.sizes : []
+    if (order.size && sizes.length > 0) {
+      const idx = sizes.findIndex((s) => s.label === order.size)
+      if (idx < 0 || (sizes[idx].stock ?? 0) < order.quantity) throw new Error('stock')
+      const next = sizes.map((s, i) => (i === idx ? { ...s, stock: s.stock - order.quantity } : s))
+      tx.update(listingRef, {
+        sizes: next,
+        stock: next.reduce((n, s) => n + (s.stock ?? 0), 0),
+      })
+    } else {
+      const stock = data.stock ?? 0
+      if (stock < order.quantity) throw new Error('stock')
+      tx.update(listingRef, { stock: stock - order.quantity })
+    }
     tx.update(orderRef, {
       status: 'confirmed',
       deliveryCents,
@@ -89,7 +101,18 @@ async function cancelConfirmedOrder(order) {
     if (!current.exists() || current.data().status !== 'confirmed') throw new Error('status')
     if (current.data().paymentStatus === 'paid') throw new Error('paid')
     if (listing.exists()) {
-      tx.update(listingRef, { stock: (listing.data().stock ?? 0) + order.quantity })
+      const data = listing.data()
+      const sizes = Array.isArray(data.sizes) ? data.sizes : []
+      const idx = order.size ? sizes.findIndex((s) => s.label === order.size) : -1
+      if (idx >= 0) {
+        const next = sizes.map((s, i) => (i === idx ? { ...s, stock: (s.stock ?? 0) + order.quantity } : s))
+        tx.update(listingRef, {
+          sizes: next,
+          stock: next.reduce((n, s) => n + (s.stock ?? 0), 0),
+        })
+      } else {
+        tx.update(listingRef, { stock: (data.stock ?? 0) + order.quantity })
+      }
     }
     tx.update(orderRef, { status: 'cancelled', updatedAt: serverTimestamp() })
   })
@@ -245,6 +268,7 @@ function OrderCard({ order: o, feedback }) {
           <p className="break-words font-semibold text-emerald-brand">{o.listingTitle}</p>
           <p className="break-words text-sm text-charcoal/70">
             {o.buyerName || 'Customer'} · {o.quantity} × {formatZAR(o.priceCents)}
+            {o.size ? ` · Size ${o.size}` : ''}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2" aria-live="polite">
             <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${STATUS_STYLE[o.status] || STATUS_STYLE.requested}`}>
@@ -423,6 +447,7 @@ function OrderCard({ order: o, feedback }) {
         <div className="mt-4 border-t border-gold/40 pt-4">
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <DetailRow label="Ordered" value={ordered} />
+            <DetailRow label="Size" value={o.size} />
             <DetailRow label="Quantity" value={o.quantity ? String(o.quantity) : ''} />
             <DetailRow label="Unit price" value={formatZAR(o.priceCents)} />
             <DetailRow label="Items total" value={formatZAR(o.totalCents)} />
@@ -518,6 +543,7 @@ export default function SellerOrders() {
           columns: [
             { header: 'Ordered', key: 'createdAt', type: 'datetime', width: 20 },
             { header: 'Item', key: 'item', width: 30 },
+            { header: 'Size', key: 'size', width: 10 },
             { header: 'Quantity', key: 'quantity', type: 'number', width: 10 },
             { header: 'Unit price', key: 'price', type: 'cents', width: 16 },
             { header: 'Items total', key: 'items', type: 'cents', width: 16 },
@@ -534,6 +560,7 @@ export default function SellerOrders() {
           rows: orders.map((o) => ({
             createdAt: o.createdAt,
             item: o.listingTitle,
+            size: o.size || '',
             quantity: o.quantity,
             price: o.priceCents,
             items: o.totalCents,

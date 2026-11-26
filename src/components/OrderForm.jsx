@@ -15,7 +15,7 @@ export default function OrderForm() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [listing, setListing] = useState(undefined)
-  const [form, setForm] = useState({ quantity: '1', phone: '', address: '', notes: '' })
+  const [form, setForm] = useState({ quantity: '1', size: '', phone: '', address: '', notes: '' })
   const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -30,11 +30,19 @@ export default function OrderForm() {
       .catch(() => setListing(null))
   }, [id])
 
+  const sizes = Array.isArray(listing?.sizes) ? listing.sizes : []
+  const hasSizes = sizes.length > 0
+  const chosen = hasSizes ? sizes.find((s) => s.label === form.size) : null
+  const available = hasSizes ? (chosen ? chosen.stock ?? 0 : 0) : listing?.stock ?? 0
+
   async function handleSubmit(e) {
     e.preventDefault()
+    if (hasSizes && !chosen) return setError('Please choose a size.')
     const quantity = parseInt(form.quantity, 10)
     if (!quantity || quantity < 1) return setError('Please enter a valid quantity.')
-    if (quantity > (listing.stock ?? 0)) return setError(`Only ${listing.stock} in stock.`)
+    if (quantity > available) {
+      return setError(hasSizes ? `Only ${available} left in size ${chosen.label}.` : `Only ${available} in stock.`)
+    }
     setBusy(true)
     setError('')
     try {
@@ -43,6 +51,7 @@ export default function OrderForm() {
         listingTitle: listing.title,
         thumb: listing.thumb || null,
         quantity,
+        size: hasSizes ? chosen.label : null,
         priceCents: listing.priceCents,
         totalCents: listing.priceCents * quantity,
         deliveryType: listing.deliveryType || null,
@@ -94,10 +103,28 @@ export default function OrderForm() {
       <p className="mb-6 text-sm text-gold-deep">{deliverySummary(listing)}</p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {hasSizes && (
+          <label className="text-sm">
+            Size
+            <select
+              required
+              value={form.size}
+              onChange={(e) => setForm({ ...form, size: e.target.value, quantity: '1' })}
+              className={`${input} mt-1 block w-full`}
+            >
+              <option value="">Choose a size</option>
+              {sizes.map((s) => (
+                <option key={s.label} value={s.label} disabled={(s.stock ?? 0) < 1}>
+                  {s.label}{(s.stock ?? 0) < 1 ? ' (sold out)' : ` (${s.stock} left)`}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="text-sm">
           Quantity
-          <input required type="number" min="1" max={listing.stock} step="1" value={form.quantity}
-            onChange={set('quantity')} className={`${input} mt-1 block w-full`} />
+          <input required type="number" min="1" max={hasSizes ? Math.max(available, 1) : listing.stock} step="1"
+            value={form.quantity} onChange={set('quantity')} className={`${input} mt-1 block w-full`} />
         </label>
         <input required type="tel" placeholder="Your phone number" value={form.phone}
           onChange={set('phone')} className={input} />
